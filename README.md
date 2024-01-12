@@ -1,19 +1,16 @@
-# project-template
-All we need to start a collaborative repo :rocket:
+# Meeting place planner 
 
-# getting started
+# Purpose
 
-1. This template requires that the path to your Onedrive is set up in your `.Renviron`
-  - Open the `.Renviron` located in your home folder. This can be done from the Terminal or using `usethis::edit_r_environ()`
-  - Add the corresponding line to it:
-```
-EPI_ONEDRIVE_PATH = "ADD YOUR ONEDRIVE PATH HERE"
+This is an attempt to build a R tool to help MSF/EPICENTRE decision makers to identify suitable meeting/events locations in order to minimise the *plane travel* CO2 emissions.
 
-```
-  - Restart your R session so that the updated .Renviron is loaded
-  - the `set_paths()` function allows you to quicly access your onedrive path as well as all of the sync folder paths. 
-  
-2. If you need to store data locally for your project. Create a `/data` directory. This directory is gitignored and will never be tracked.
-3. If you need to store outputs locally for your project. Create a `/local` directory. This directory is gitignored and will never be tracked.
-5. If you need to use temporary/sensitive files for your project. Create a `/temp` directory. This directory is gitignored and will never be tracked.
-6. If you are using [renv](https://cran.r-project.org/web/packages/renv/index.html), all `renv` files and folders will gitignored and will never be tracked. This is because the `renv` lockfile usually generates a lot of conflicts. You can always use it locally for your own needs.
+- The tool must take into account the origins and number of participants
+- Then output the location with the smallest CO2 emissions, that is the smallest sum of straight line distances.
+- Ideally then use a formula to convert the plane distance into estimated CO2 emissions
+
+# Roadmap
+
+[] Calculate the distance matrix between main airports
+[] Create a script that can get the distances depending on origins and number of participants
+[] Create a small interactive shiny app 
+[] Extent to include train data ?
