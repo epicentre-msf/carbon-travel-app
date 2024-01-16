@@ -28,7 +28,6 @@ pacman::p_load(
   tidyverse # data science
 )
 
-
 # Funcs -------------------------------------------------------------------
 
 source("R/funcs.R")
@@ -59,11 +58,12 @@ ori_df  <- data.frame(
     "Geneva", 
     "Amsterdam",
     "Madrid",
-    "Athens"
-  ),
+    "Athens"),
   
-  n_participant = c(2, 2, 2, 2, 5, 2, 3)
+  n_participant = c(2, 2, 2, 2, 5, 2, 5)
 )
+
+maps::world.cities %>% filter(pop >100000)
 
 # map this on all the possible destination
 # this is quite long
@@ -74,10 +74,16 @@ all_dist <- purrr::map(air_sub$city, ~ get_dest_tot(ori_df, .x, conversion_df)) 
   
   distinct(destination, .keep_all = TRUE)
 
+# get_dest_tot(ori_df, "London", conversion_df)
+# 
+#   bind_rows() %>%
+# 
+#   distinct(destination, .keep_all = TRUE)
+
 # format to arrange in decreasing order, and km 
 all_dist <- all_dist %>% 
   
-  arrange(grand_tot_km) %>% 
+  arrange(grand_tot_emission) %>% 
   
   mutate(rank = row_number()
   ) %>% relocate(rank, 1)
@@ -89,7 +95,7 @@ all_dist %>%
   head(., n = 20) %>% 
   
   epivis::epi_gtstyle() %>% 
-
+  
   data_color(
     columns = grand_tot_emission,
     method = "numeric",

@@ -27,7 +27,7 @@ pacman::p_load(
   tidyverse # data science
 )
 
-#keep the airports with a IATA code
+# keep the airports with a IATA code
 # also some airports have no city name (39)
 
 air_sub <- airports %>% 
@@ -89,4 +89,3 @@ saveRDS(mat, "data/airports_distance_matrix.rds")
 
 #save the airport sub df 
 saveRDS(air_sub, "data/airports_sub.rds")
-
