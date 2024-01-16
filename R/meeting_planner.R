@@ -42,43 +42,58 @@ mat <- import("data/airports_distance_matrix.rds")
 air_sub <- import("data/airports_sub.rds")
 
 #get the conversion df - taken from {footprint}
-conversion_df <- import("data/conversion_factors_original.xlsx")
+#conversion_df <- import("data/conversion_factors_original.xlsx")
 
-# #get the world cities
-# cities  <- maps::world.cities %>% as_tibble()
-# #get cities above 100 000 - subset for now for easier calculation
-# cities_sub <- cities %>% filter(pop > 100000)
+conversion_df <- data.frame(
+  distance = c("0-1000 km", "1000-3500 km", "+ 3500 km"), 
+  distance_cat = c("short", "medium", "long"),
+  co2e = c(0.25858, 0.18746, 0.15196)
+)
 
 # Create a fake dataset of origins of participants
 ori_df  <- data.frame(
   origin = c(
-    "Paris",
-    "London",
-    "Brussels",
-    "Geneva", 
-    "Amsterdam",
-    "Madrid",
-    "Athens"),
-  
-  n_participant = c(2, 2, 2, 2, 5, 2, 5)
+    "paris",
+    "london",
+    "madrid", 
+    "oslo"),
+  country = c("France", "United Kingdom", "Spain", "Norway"), 
+  n_participant = c(1, 3, 5, 7)
 )
 
-maps::world.cities %>% filter(pop >100000)
+#Try with one city 
+#get_dest_tot(ori_df, "london", conversion_df)
+
+#define the list of destination possible 
+
+only_msf <- TRUE
+only_capital <- TRUE
+
+if(only_msf){
+  
+  dest_list <- air_sub %>% filter(msf)
+  
+} else {
+  
+  dest_list <- air_sub
+  
+}
+
+if(only_capital){
+  
+  dest_list <- dest_list %>% filter(capital)
+  
+}
+
+dest_list <- dest_list %>% pull(city)
 
 # map this on all the possible destination
 # this is quite long
-
-all_dist <- purrr::map(air_sub$city, ~ get_dest_tot(ori_df, .x, conversion_df)) %>%
+all_dist <- purrr::map(dest_list, ~ get_dest_tot(ori_df, .x, conversion_df)) %>%
   
   bind_rows() %>% 
   
   distinct(destination, .keep_all = TRUE)
-
-# get_dest_tot(ori_df, "London", conversion_df)
-# 
-#   bind_rows() %>%
-# 
-#   distinct(destination, .keep_all = TRUE)
 
 # format to arrange in decreasing order, and km 
 all_dist <- all_dist %>% 
@@ -86,7 +101,11 @@ all_dist <- all_dist %>%
   arrange(grand_tot_emission) %>% 
   
   mutate(rank = row_number()
-  ) %>% relocate(rank, 1)
+  ) %>%
+  
+  relocate(rank, 1) %>% 
+  
+  left_join(., select(air_sub, city, msf), by = c("destination" = "city"))
 
 #format the output 
 
