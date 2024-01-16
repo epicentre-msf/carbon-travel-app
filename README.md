@@ -10,7 +10,13 @@ This is an attempt to build a R tool to help MSF/EPICENTRE decision makers to id
 
 # Roadmap
 
-- [X] Calculate the distance matrix between main airports
-- [X] Create a script that can get/ sort the distances and emissions depending on origins and number of participants
+- [X] Calculate the distance matrix between main cities that contain airports
+- [X] A script that can get/ sort the distances (and emissions) depending on origins and number of participants
+- [X] Compare between a selection of destinations
+- [ ] Estimate emission for one travel (tomorrow I go to Geneva - what are my emissions ?)
 - [ ] Create a small interactive shiny app 
-- [ ] Extent to include train data ?
+- [ ] Extent to include train data for European destination
+
+# Requisite to Maëlle 
+
+- [ ] Need the list of cities where MSF has offices

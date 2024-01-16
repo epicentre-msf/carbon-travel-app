@@ -66,26 +66,30 @@ ori_df  <- data.frame(
 
 #define the list of destination possible 
 
+selected_dest <- c("paris", "amsterdam")
 only_msf <- TRUE
 only_capital <- TRUE
 
-if(only_msf){
+if(is.null(selected_dest)){
   
-  dest_list <- air_sub %>% filter(msf)
+  if(only_msf){
+    
+    air_sub <- air_sub %>% filter(msf)
+    
+  }
   
+  if(only_capital){
+    
+    air_sub <- air_sub %>% filter(capital)
+    
+  }
+  
+  dest_list <- air_sub %>% pull(city)
 } else {
   
-  dest_list <- air_sub
+  dest_list <- selected_dest
   
 }
-
-if(only_capital){
-  
-  dest_list <- dest_list %>% filter(capital)
-  
-}
-
-dest_list <- dest_list %>% pull(city)
 
 # map this on all the possible destination
 # this is quite long
@@ -111,7 +115,7 @@ all_dist <- all_dist %>%
 
 all_dist %>%
   
-  head(., n = 20) %>% 
+  head(., n = 5) %>% 
   
   epivis::epi_gtstyle() %>% 
   
