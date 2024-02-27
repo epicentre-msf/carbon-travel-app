@@ -71,7 +71,8 @@ air_clean <- airports %>%
   mutate(city = tolower(str_squish(city)), 
          country = tolower(str_squish(country)), 
          country = case_when(country == "congo (brazaville)" ~ "republic of congo", 
-                             country == "congo (kinshasa)" ~ "democratic republic of congo", 
+                             country == "congo (kinshasa)" ~ "democratic republic of congo",
+                             country == "united states" ~ "united states of america",
                              
                              .default = country), 
          capital = city %in% capital$city)  %>% 
@@ -188,7 +189,6 @@ air_msf <- air_unique %>%
          )
 
 export(air_msf, "data/clean/air_msf.rds")
-
 
 # COnversion factors (given by Maelle) ------------------------------------
 
