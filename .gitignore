@@ -54,7 +54,7 @@ data/
 temp/
 .Rprofile
 
-# Local foler
+# Local folder
 local/
 
 # Renv

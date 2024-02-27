@@ -24,6 +24,14 @@ get_dest_tot <- function(origin_df,
                          destination, 
                          conversion_df){ 
   
+  matrix_city <- colnames(mat)
+  
+  if( destination %in% matrix_city == FALSE ) {
+    
+    stop(paste0(destination, " is not in the distance matrix"))
+    
+  }
+  
   #function to retrieve the distance from two cities 
   get_dist <- function(origin, destination){
     
@@ -47,11 +55,11 @@ get_dest_tot <- function(origin_df,
     
     mutate( 
       destination = destination, 
-      distance = get_dist(destination, origin), 
+      distance = get_dist(destination, origin_id), 
       distance_km = distance/1000, 
       total_distance_km = n_participant * distance_km,
       
-      distance_type = case_when(distance_km <= 1000 ~ "short",
+      distance_type = case_when(distance_km <= 999 ~ "short",
                                 distance_km >= 3500 ~ "long", 
                                 .default = "medium"), 
       emissions_factor = get_factor(distance_type), 

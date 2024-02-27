@@ -36,19 +36,13 @@ source("R/funcs.R")
 
 # Get the distance matrix 
 
-mat <- import("data/airports_distance_matrix.rds")
+mat <- import("data/distance-matrix/airports_distance_matrix.rds")
 
-#get the air_sub 
-air_sub <- import("data/airports_sub.rds")
+#get the air_msf data 
+air_msf <- import("data/clean/air_msf.rds")
 
-#get the conversion df - taken from {footprint}
-#conversion_df <- import("data/conversion_factors_original.xlsx")
-
-conversion_df <- data.frame(
-  distance = c("0-1000 km", "1000-3500 km", "+ 3500 km"), 
-  distance_cat = c("short", "medium", "long"),
-  co2e = c(0.25858, 0.18746, 0.15196)
-)
+#get the conversion df - given by Maelle
+conversion_df <- import("data/clean/conversion_df.rds")
 
 # Create a fake dataset of origins of participants
 ori_df  <- data.frame(
@@ -57,42 +51,64 @@ ori_df  <- data.frame(
     "london",
     "madrid", 
     "oslo"),
-  country = c("France", "United Kingdom", "Spain", "Norway"), 
+  country = c("france", 
+              "united kingdom", 
+              "spain", 
+              "norway"), 
   n_participant = c(1, 3, 5, 7)
-)
+  
+) %>% 
+  
+  mutate(origin_id = paste0(country, "-", origin))
 
-#Try with one city 
-#get_dest_tot(ori_df, "london", conversion_df)
+# Define list of possible destinations ------------------------------------
 
-#define the list of destination possible 
+# Parameters 
 
-selected_dest <- c("paris", "amsterdam")
+selected_dest <- NULL #c("france-paris", "netherlands-amsterdam")
+
 only_msf <- TRUE
-only_capital <- TRUE
+
+if(only_msf){
+  
+  msf_type_select <- c("MSF office", "MSF HQ OC")
+}
+
+# only_capital <- FALSE
 
 if(is.null(selected_dest)){
   
   if(only_msf){
     
-    air_sub <- air_sub %>% filter(msf)
+    air_msf <- air_msf %>% filter(msf_type %in% msf_type_select)
     
   }
   
-  if(only_capital){
-    
-    air_sub <- air_sub %>% filter(capital)
-    
-  }
+  # if(only_capital){
+  #   
+  #   air_msf <- air_msf %>% filter(capital == 1)
+  #   
+  # }
   
-  dest_list <- air_sub %>% pull(city)
+  dest_list <- unique(air_msf %>% pull(city_id))
+  
 } else {
   
   dest_list <- selected_dest
   
 }
 
+#Try with one city - MISSING UK
+# get_dest_tot(ori_df,
+#              "united kingdom-london",
+#              conversion_df)
+
 # map this on all the possible destination
 # this is quite long
+
+# filter matrix to keep only origin 
+# filter matrix to keep only destinations 
+
 all_dist <- purrr::map(dest_list, ~ get_dest_tot(ori_df, .x, conversion_df)) %>%
   
   bind_rows() %>% 
@@ -105,14 +121,19 @@ all_dist <- all_dist %>%
   arrange(grand_tot_emission) %>% 
   
   mutate(rank = row_number()
+         
   ) %>%
   
   relocate(rank, 1) %>% 
   
-  left_join(., select(air_sub, city, msf), by = c("destination" = "city"))
+  left_join(., select(air_msf,
+                      oc,
+                      msf_type,
+                      city_id), by = c("destination" = "city_id")) %>% 
+  
+  separate(destination, c("Country", "City"), "-")
 
 #format the output 
-
 all_dist %>%
   
   head(., n = 5) %>% 
@@ -134,5 +155,3 @@ all_dist %>%
   
   tab_footnote(location = cells_column_labels("grand_tot_km"), 
                "Calculated using one way travel to destination")
-
-#WHY is distance and emissions not always correlated ? 

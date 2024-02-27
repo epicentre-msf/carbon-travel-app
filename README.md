@@ -20,3 +20,8 @@ This is an attempt to build a R tool to help MSF/EPICENTRE decision makers to id
 # Requisite to Maëlle 
 
 - [ ] Need the list of cities where MSF has offices
+
+
+# To be fixed in MSF presence layer 
+
+- Branch offices location cities to be fixed 
