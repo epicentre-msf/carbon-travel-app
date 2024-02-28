@@ -75,6 +75,7 @@ air_clean <- airports %>%
                              country == "united states" ~ "united states of america",
                              
                              .default = country), 
+         iso3 = countrycode::countrycode(country, "country.name", "iso3c"), 
          capital = city %in% capital$city)  %>% 
   
   # keep the airports with a valid IATA code
@@ -82,14 +83,14 @@ air_clean <- airports %>%
   filter(iata != "\\N", 
          !is.na(city)) %>% 
   
-  select(country, city, name, latitude, longitude, iata, icao, capital)
+  select(country, iso3, city, name, latitude, longitude, iata, icao, capital)
 
 # Add all airports cities ---------------------------------------------------
 
 #For cities with multiple airports: take the mean lat/long of all airports
 air_unique <- air_clean %>% 
   
-  group_by(country, city) %>% 
+  group_by(country, iso3, city) %>% 
   
   summarise(n_airports = n(), 
             iata = paste0(iata, collapse = ", "), 
@@ -99,7 +100,7 @@ air_unique <- air_clean %>%
   
   ungroup %>% 
   
-  select(country, city, mean_latitude,  mean_longitude)
+  select(country, iso3, city, mean_latitude,  mean_longitude)
 
 export(air_unique, "data/clean/air_unique.rds")
 
@@ -118,39 +119,36 @@ msf_raw <- msf_proj %>%
   
   filter(!str_detect(city, "\\?")) %>% 
   
-  mutate(across(c(country, city), ~ str_squish(str_to_lower(.x)))) 
+  mutate(across(c(country, city), ~ str_squish(str_to_lower(.x))), 
+         iso3 = countrycode::countrycode(country, "country.name", "iso3c")) %>% 
+  
+  relocate(iso3, .after = country)
 
 # Match the airport cities to MSF cities  ---------------------------------
 
 #using the airport data as the reference 
 #unique cities in airport data 
-air_city <- air_unique %>% distinct(country, city)
+air_city <- air_unique %>% distinct(iso3, city)
 
 #all the match rows
-msf_match1 <- hmatch(msf_raw, air_city, type = "resolve_inner") %>% 
-  select(-c(country, city)) %>% mutate(airport = TRUE)
-
-#remaining rows to match 
-msf_remain1 <- hmatch(msf_raw, air_city, type = "resolve_anti")
-
-msf_match2 <- hmatch(msf_remain1, air_city, fuzzy = TRUE, type = "resolve_inner") %>% select(-c(country, city)) %>% mutate(airport = TRUE)
-
-msf_remain2 <- hmatch(msf_remain1, air_city, fuzzy = TRUE, type = "resolve_anti") %>% mutate(airport = FALSE) %>% rename(ref_city = city, ref_country = country)
-
-#bind rows 
-msf_clean <- bind_rows(msf_match1, 
-                       msf_match2, 
-                       msf_remain2) %>% 
+msf_clean <- hmatch_composite(msf_raw, 
+                              air_city, 
+                              by = c("iso3", "city"), 
+                              fuzzy = TRUE) %>% 
   
-  rename(country = ref_country, 
-         city = ref_city) %>% 
+  mutate(iso3 = coalesce(ref_iso3, iso3), 
+         city = coalesce(ref_city, city)) %>% 
   
-  relocate(c(country, city), 1)
+  select(!contains("ref_")) %>% 
+  
+  relocate(c(country, iso3, city), 1) %>% 
+  
+  arrange(country, city)
 
 export(msf_clean, "data/clean/full_msf_clean.xlsx")
 
 #keep one row per city
-msf_clean <- msf_clean %>% 
+msf_unique <- msf_clean %>% 
   
   group_by(country, city) %>% 
   
@@ -170,16 +168,15 @@ msf_clean <- msf_clean %>%
          oc,
          msf_type) %>% 
   
-  filter(!is.na(city), 
-         !is.na(city)) 
+  filter(!is.na(city)) 
 
-export(msf_clean, "data/clean/unique_msf_clean.rds")
+export(msf_unique, "data/clean/unique_msf_clean.rds")
 
 # Join airport and MSF data -----------------------------------------------
 
 air_msf <- air_unique %>% 
   
-  left_join(msf_clean) %>% 
+  left_join(msf_unique) %>% 
   
   mutate(msf = !is.na(msf_type), 
          
