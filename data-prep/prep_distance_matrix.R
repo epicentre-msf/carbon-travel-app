@@ -41,12 +41,13 @@ iata <- import("data/clean/air_unique.rds")
 #this can take time if many airports
 
 start <- Sys.time()
-mat <- geosphere::distm(select(dat, mean_longitude, mean_latitude), 
-                        select(dat, mean_longitude, mean_latitude), 
-                        fun = geosphere::distHaversine)
+mat <- geosphere::distm(
+  select(dat, mean_longitude, mean_latitude),
+  select(dat, mean_longitude, mean_latitude),
+  fun = geosphere::distHaversine
+)
 end <- Sys.time()
-diff <- start - end
-
+diff <- end - start
 print(diff)
 
 #name the matrix cols and rows
@@ -54,7 +55,9 @@ colnames(mat) <- dat$city_id
 rownames(mat) <- dat$city_id
 
 #save the matrix
-saveRDS(mat, "data/distance-matrix/airports_distance_matrix.rds")
+out_dir <- here::here("data", "distance-matrix")
+if (!fs::dir_exists(out_dir)) fs::dir_create(out_dir)
+readr::write_rds(mat, fs::path(out_dir, "airports_distance_matrix", ext = "rds"))
 
 # # Create a IATA distance matrix -------------------------------------------
 # start <- Sys.time()
