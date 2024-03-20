@@ -182,7 +182,7 @@ air_msf <- air_unique %>%
 
 export(air_msf, "data/clean/air_msf.rds")
 
-# COnversion factors (given by Maelle) ------------------------------------
+# Conversion factors (given by Maelle) ------------------------------------
 
 conversion_df <- data.frame(
   distance = c("0-999 km", "1000-3499 km", "+ 3500 km"),

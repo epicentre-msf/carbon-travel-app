@@ -2,6 +2,7 @@ library(shiny)
 library(bslib)
 library(tidyverse)
 library(gt)
+source(here::here("R", "utils.R"))
 
 # Import data -------------------------------------------------------------
 # Get the distance matrix
@@ -31,6 +32,9 @@ cities <- air_msf %>%
 #     group_by = country.etc
 #   )
 
+# Get AMEX data 
+amex <- read_rds(here::here("data", "amex", "amex_clean.rds"))
+
 ui <- page_navbar(
   title = "MSF Carbon Travel App",
   theme = bs_theme(
@@ -53,7 +57,13 @@ ui <- page_navbar(
 
   nav_panel(
     "AMEX Analysis",
-    "placeholder"
+    layout_sidebar(
+      sidebar = sidebar(
+        width = 300,
+        gap = 0
+      )
+    ), 
+    vb_ui("vb")
   ),
 
   # nav images and links 
@@ -102,6 +112,12 @@ server <- function(input, output, session) {
     df_origin,
     msf_only = TRUE
   )
+  
+  vb_server(id = "vb", 
+                amex)
+  
+  
+  
 }
 
 shinyApp(ui, server)
