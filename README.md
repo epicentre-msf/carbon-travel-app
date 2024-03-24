@@ -22,6 +22,17 @@ The App currently uses
 - The airport dataset from `{airportr}` package - summarises world airport location. For cities with multiple airport, these are aggregated as the mean of latitued ans longitudes
 - AMEX data as provided from the API 
 
+# To do on App 
+
+- [ ] Add a Time serie graph 
+- [ ] Add a Map 
+- [ ] Add a download data button - No sensitive data 
+- [ ] Add a Tab for calculating one travel 
+
+
 # Roadmap
+- [ ] Compile all flight travel data together 
+- [ ] How to take into account the stop overs ? 
 - [ ] Estimate emission for one travel (tomorrow I go to Geneva - what are my emissions ?)
 - [ ] Extent to include train data for European destination
+- [ ] Add a way for individual to see their own data

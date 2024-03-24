@@ -3,6 +3,7 @@ library(shiny)
 library(bslib)
 library(tidyverse)
 library(gt)
+library(highcharter)
 source(here::here("R", "utils.R"))
 
 # Import data -------------------------------------------------------------
@@ -31,6 +32,7 @@ df_amex <- read_rds(here::here("data", "amex", "amex_clean.rds"))
 init_date_range <- format(seq.Date(min(df_amex$invoice_date), max(df_amex$invoice_date), by = "month"), "%Y-%m")
 min_date <- min(init_date_range)
 max_date <- max(init_date_range)
+
 # cities <- maps::world.cities %>%
 #   filter(pop > 100000) %>%
 #   # dplyr::mutate(iso2 = countrycode::countrycode(country.etc, "country.name", "iso2c")) %>%
