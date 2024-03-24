@@ -1,7 +1,7 @@
 # ---------------------------
 # Script name: data_prep_amex.R
 #
-# Purpose of script: data preparation for AMEX flights
+# Purpose of script: preparation for AMEX flights data
 #
 # Author: Hugo Soubrier
 #
@@ -28,56 +28,98 @@ pacman::p_load(
   
 )
 
-#Import data 
+#Import data -----------
 
-amex <- import(here::here("data", "amex", "Air Carbon Emissions-MSFCH_2023.xlsx"), skip = 5) %>% as_tibble()
+#country_codes 
+country_codes  <- import(here::here("data", "country_codes.xlsx")) %>% clean_names() %>% rename(mission_name = name) %>% as_tibble()
 
-# clean data 
-amex_clean <- amex %>% 
-  
-  clean_names() %>% 
-  
-  #everything to lower
-  mutate(across(everything(), ~ tolower(.x)), 
-         org = case_match(client_id_name,  "medecins sans frontieres switz" ~ "OCG"), 
-         across(c(flight_mileage, flight_kilometers), ~ as.numeric(.x))) %>% 
-  
+dir_ls <- fs::dir_ls("data/amex", regexp = "ALLMSF")
+myfiles <- lapply(dir_ls, rio::import, skip = 5)
+
+#amex <- import(here::here("data", "amex", "Air Carbon Emissions-MSFCH_2023.xlsx"), skip = 5) %>% as_tibble()
+amex  <- myfiles %>% bind_rows() %>% as_tibble()
+
+# Clean data ----------
+
+amex_clean <- amex %>%
+       clean_names() %>%
+       rename(
+              org = client_id_name,
+              distance_km = flight_kilometers,
+              distance_miles = flight_mileage,
+              carrier = carrier_validating,
+              class_service = class_of_service_invoice_predominant, 
+              gross_amount = flight_gross_amount, 
+              net_amount = flight_net_amount, 
+              city_pairs = non_directional_city_pair, 
+              dest_code = destination_city_code, 
+              ori_code = origin_city_code, 
+              dest = destination_city, 
+              mission = customer_defined_03,
+              ori = origin_city, 
+              reason_travel = customer_defined_08
+       ) %>% 
+       
+       # Deal with character variables - everything to lower
+       mutate(across(where(~ is.character(.x)), ~ tolower(.x)),
+              org = case_match(
+                     client_id,
+                     "msfg98" ~ "OCG",
+                     "msfgch" ~ "MSF International",
+                     "msfgnl" ~ "OCA",
+                     "msfg95" ~ "OCA",
+                     "msfga1" ~ "MSF - Austria",
+                     "msfg94" ~ "MSF - Germany",
+                     "msfg91" ~ "OCB",
+                     "msfg97" ~ "MSF - Sweden"
+              ), 
+
+              reason_travel = case_match(reason_travel, 
+              "r01" ~ "Field project/briefing",
+              "ro1"~ "Field project/briefing", 
+              "r02" ~ "Training",
+              "r03" ~ "Field project visit",
+              "r04" ~ "MSF meeting",
+              "r05" ~ "non-MSF meeting",
+              "r06" ~ "Medivac",
+              "r07" ~ "Visa run",
+              "r08" ~ "MSF paid personal travel",
+              "r11" ~ "Personal travel (subaccount)", 
+              .default = NA
+), 
+mission_id = str_to_upper(str_extract(mission, "[a-z]{2}"))
+       )  %>% 
+       # deal with numeric variables
+       mutate(across(c(distance_miles, distance_km, gross_amount, net_amount), ~ as.numeric(.x))) %>%
+       # clean dates
+       mutate(invoice_date = ymd(invoice_date)) %>% 
+       arrange(ticket_number, traveler_name) %>% 
   #id the flight that were refunded and remove them 
-  mutate(.by = c(ticket_number, traveler_name, destination_city_code, origin_city_code), 
-         refunded = sum(flight_kilometers) == 0) %>% 
-  
+  mutate(.by = c(ticket_number, traveler_name, dest_code, ori_code), 
+         refunded = sum(distance_km) == 0) %>% 
   filter(refunded == FALSE) %>% 
-  
   #remove the remaining negative
-  filter(flight_kilometers >= 0) %>% 
+  filter(distance_km >= 0) %>% 
   
   #filter out the non valid city code
-  filter(str_detect(origin_city_code, "[a-z]")) %>% 
+  filter(str_detect(ori_code, "[a-z]")) %>% 
   
   arrange(ticket_number) %>% 
   
   select(-c(traveler_name, 
             ticket_number, 
-            customer_defined_03, 
-            customer_defined_08, 
-            customer_defined_10, 
-            invoice_number, 
-            pnr, 
-            client_id_name, 
-            origin_city_code, 
-            destination_city_code
-  )) %>% 
-  
-  rename(distance_miles = flight_mileage, 
-         distance_km = flight_kilometers, 
-         origin = origin_city, 
-         destination = destination_city)
+            reason_code,
+            contains("customer_defined"), 
+            pnr
+  )) 
+
+  # add country codes - THEY NEED TO BE CHECKED 
+amex_clean <- left_join(amex_clean, country_codes, by = c("mission_id" = "country_code"))
+amex_clean %>% count(mission_name)
 
 # Calculate the distance between cities and compare with AMEX dist --------
-#Amex uses terrestrial miles
-#can't compare distance yet 
-
-
+# Amex uses terrestrial miles
+# can't compare distance yet 
 
 # Calculate emissions for flights -----------------------------------------
 
@@ -85,14 +127,14 @@ amex_clean <- amex_clean %>%
   mutate(distance_km_cat = case_when(distance_km < 1000 ~ "short", 
                                      between(distance_km, 1000, 3499) ~ "medium", 
                                      distance_km  > 3499 ~ "long"), 
+
          coe2_fct = case_when(distance_km_cat == "short" ~ 0.25858, 
                               distance_km_cat == "medium" ~ 0.18746, 
                               distance_km_cat == "long" ~ 0.15196
          ), 
          emission = round(distance_km * coe2_fct, 2),
-         origin = str_to_sentence(origin), 
-         destination = str_to_sentence(destination)) 
-
+         ori = str_to_sentence(ori), 
+         dest = str_to_sentence(dest)) 
 # Export data -------------------------------------------------------------
 
 export(amex_clean, "data/amex/amex_clean.rds")

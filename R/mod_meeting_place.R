@@ -14,12 +14,12 @@ mod_meeting_place_server <- function(id,
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     msf_type_select <- paste(c("MSF office", "MSF HQ OC"), collapse = "|")
-
+    
     df_dists <- reactive({
       req(df_origin())
       ntf <- showNotification("Calculating optimal meeting locations", duration = NULL)
       on.exit(removeNotification(ntf))
-
+      
       if (msf_only) {
         dest_possible <- air_msf %>% filter(str_detect(msf_type, msf_type_select))
       } else {
@@ -28,15 +28,15 @@ mod_meeting_place_server <- function(id,
       dest_list <- dest_possible %>%
         distinct(city_id) %>%
         pull()
-
+      
       all_dist <- purrr::map(
         dest_list,
         ~ get_dest_tot(
-            df_origin(),
-            .x,
-            df_conversion,
-            mat
-          )
+          df_origin(),
+          .x,
+          df_conversion,
+          mat
+        )
       ) %>%
         bind_rows() %>%
         distinct(destination, .keep_all = TRUE) %>%
@@ -52,7 +52,7 @@ mod_meeting_place_server <- function(id,
         separate(destination, c("Country", "City"), "-") %>%
         mutate(across(c(Country, City), str_to_title))
     })
-
+    
     output$tbl <- gt::render_gt({
       req(df_dists())
       df_dists() %>%
@@ -85,7 +85,7 @@ mod_meeting_place_server <- function(id,
           "Calculated using one way travel to destination"
         )
     })
-
+    
   })
 }
 
@@ -98,13 +98,13 @@ get_dest_tot <- function(df_origin,
                          df_conversion,
                          mat) {
   matrix_city <- colnames(mat)
-
+  
   if (destination %in% matrix_city == FALSE) {
     stop(paste0(destination, " is not in the distance matrix"))
   }
-
+  
   distances <- unname(mat[df_origin$origin_id, destination])
-
+  
   df_details <- df_origin %>%
     mutate(
       destination = destination,
@@ -125,13 +125,13 @@ get_dest_tot <- function(df_origin,
       trip_emissions = round(digits = 3, distance_km * emissions_factor),
       total_emissions = n_participant * trip_emissions
     )
-
+  
   grand_df <- df_details %>%
     group_by(destination) %>%
     summarise(
       grand_tot_km = sum(total_distance_km),
       grand_tot_emission = sum(total_emissions)
     )
-
+  
   return(grand_df)
 }

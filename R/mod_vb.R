@@ -1,56 +1,18 @@
 
 vb_ui <- function(id) {
   ns <- NS(id)
-  layout_column_wrap(
-    width = 1/5,
-    fill = FALSE,
-    value_box(
-      title = "Flights",
-      theme = "primary",
-      class = "vb",
-      value = textOutput(ns("flight")),
-    ),
-    value_box(
-      title = "Routes",
-      theme = "primary",
-      class = "vb",
-      value = textOutput(ns("segment")),
-    ),
-    value_box(
-      title = "Main route",
-      theme = "primary",
-      class = "vb",
-      value = textOutput(ns("main_segment")),
-      uiOutput(ns("main_segment_info"))
-    ),
-    value_box(
-      title = "Total Distance",
-      theme = "primary",
-      class = "vb",
-      value = textOutput(ns("dist")),
-      uiOutput(ns("dist_info"))
-    ),
-    value_box(
-      title = "Total Emissions",
-      theme = "primary",
-      class = "vb",
-      value = textOutput(ns("emission")),
-      #uiOutput(ns("emission_info"))
-    )
-  )
+  
 }
 
-vb_server <- function(id, amex) {
+vb_server <- function(id, dat) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     
     amex_summary <- reactive({
       
-      amex <- force_reactive(amex)
+      main_segment <- reactive({ dat %>% count(ori, dest) %>% mutate(segment = paste(ori, dest, sep = "-")) %>% arrange(desc(n))})
       
-      main_segment <-reactive({ amex %>% count(origin, destination) %>% mutate(segment = paste(origin, destination, sep = "-")) %>% arrange(desc(n))})
-      
-      amex  %>%
+      dat_summ <- dat %>%
         
         summarise(
           n_flight = frmt_num( n()),
@@ -61,6 +23,8 @@ vb_server <- function(id, amex) {
           tot_distance_km = frmt_num(sum(distance_miles)),
           tot_emissions = frmt_num(sum(emission))
         )
+      
+      return(dat_summ)
     })
     
     # df_summary <- reactive({
