@@ -4,7 +4,19 @@ library(bslib)
 library(tidyverse)
 library(gt)
 library(highcharter)
+source(here::here("R", "set_paths.R"))
 source(here::here("R", "utils.R"))
+
+# Set paths -------------------------------------------------------------
+
+paths <- set_paths()
+
+sharepoint_path <- paths$sharepoint_path
+
+
+# Path to clean data 
+clean_path <- fs::path(sharepoint_path, "maelle_charrier_tool", "data", "clean")
+
 
 # Import data -------------------------------------------------------------
 # Get the distance matrix

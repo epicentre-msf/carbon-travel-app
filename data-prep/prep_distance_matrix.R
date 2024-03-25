@@ -27,13 +27,24 @@ pacman::p_load(
   tidyverse # data science
 )
 
+
+source(here::here("R", "set_paths.R"))
+source(here::here("R", "utils.R"))
+
+# Set paths -------------------------------------------------------------
+
+paths <- set_paths()
+
+sharepoint_path <- paths$sharepoint_path
+
+raw_path <- fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "data", "raw")
+clean_path <- fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "data", "clean")
+
 # Import data -------------------------------------------------------------
 
 # Airport + MSF data 
 
-dat <- import("data/clean/air_msf.rds")
-
-iata <- import("data/clean/air_unique.rds")
+dat <- import(fs::path(clean_path, "air_msf.rds"))
 
 # Distance Matrix ---------------------------------------------------------
 
@@ -55,9 +66,7 @@ colnames(mat) <- dat$city_id
 rownames(mat) <- dat$city_id
 
 #save the matrix
-out_dir <- here::here("data", "distance-matrix")
-if (!fs::dir_exists(out_dir)) fs::dir_create(out_dir)
-readr::write_rds(mat, fs::path(out_dir, "airports_distance_matrix", ext = "rds"))
+readr::write_rds(mat, fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "Data", "distance-matrix", "airports_distance_matrix.rds"))
 
 # # Create a IATA distance matrix -------------------------------------------
 # start <- Sys.time()

@@ -29,8 +29,19 @@ pacman::p_load(
   tidyverse # data science
 )
 
-dir_data_clean <- here::here("data", "clean")
-if (!fs::dir_exists(dir_data_clean)) fs::dir_create(dir_data_clean)
+# Source script ---------------------------
+
+source(here::here("R", "set_paths.R"))
+source(here::here("R", "utils.R"))
+
+# Set paths -------------------------------------------------------------
+
+paths <- set_paths()
+
+sharepoint_path <- paths$sharepoint_path
+
+raw_path <- fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "data", "raw")
+clean_path <- fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "data", "clean")
 
 # Cities data  ------------------------------------------------------------
 cities_clean <- maps::world.cities %>%
@@ -104,12 +115,12 @@ air_unique <- air_clean %>%
   ungroup() %>%
   select(country, iso3, city, mean_latitude, mean_longitude)
 
-export(air_unique, "data/clean/air_unique.rds")
+export(air_unique, fs::path(clean_path, "air_unique.rds"))
 
 # MSF data ----------------------------------------------------------------
 
 # load MSF project data from the GIS unit
-msf_proj <- import("data/raw/msf_presence_layer.xlsx") %>%
+msf_proj <- import(fs::path(raw_path, "msf-data", "msf_presence_layer.xlsx")) %>%
   as_tibble() %>%
   clean_names()
 
@@ -148,7 +159,7 @@ msf_clean <- hmatch_composite(
   relocate(c(country, iso3, city), 1) %>%
   arrange(country, city)
 
-export(msf_clean, "data/clean/full_msf_clean.xlsx")
+export(msf_clean, fs::path(clean_path, "full_msf_clean.xlsx"))
 
 # keep one row per city
 msf_unique <- msf_clean %>%
@@ -168,7 +179,7 @@ msf_unique <- msf_clean %>%
   ) %>%
   filter(!is.na(city))
 
-export(msf_unique, "data/clean/unique_msf_clean.rds")
+export(msf_unique, fs::path(clean_path, "unique_msf_clean.rds") )
 
 # Join airport and MSF data -----------------------------------------------
 
@@ -180,7 +191,7 @@ air_msf <- air_unique %>%
     city_id = paste0(country, "-", city)
   )
 
-export(air_msf, "data/clean/air_msf.rds")
+export(air_msf, fs::path(clean_path, "air_msf.rds"))
 
 # Conversion factors (given by Maelle) ------------------------------------
 
@@ -190,4 +201,4 @@ conversion_df <- data.frame(
   co2e = c(0.25858, 0.18746, 0.15196)
 )
 
-export(conversion_df, "data/clean/conversion_df.rds")
+export(conversion_df, fs::path(clean_path, "conversion_df.rds") )
