@@ -5,7 +5,9 @@ library(tidyverse)
 library(gt)
 library(highcharter)
 source(here::here("R", "set_paths.R"))
+source(here::here("R", "utils_labels.R"))
 source(here::here("R", "utils.R"))
+source(here::here("R", "utils_hc.R"))
 
 # Set paths -------------------------------------------------------------
 
@@ -17,6 +19,11 @@ sharepoint_path <- paths$sharepoint_path
 # Path to clean data 
 clean_path <- fs::path(sharepoint_path, "maelle_charrier_tool", "data", "clean")
 
+# Setup -------------------------------------------------------------------
+app_name <- "carbon_app"
+app_title <- "Carbon Travel App"
+app_font <- "Alegreya Sans"
+p_font <- "Merriweather"
 
 # Import data -------------------------------------------------------------
 # Get the distance matrix
@@ -55,3 +62,13 @@ max_date <- max(init_date_range)
 #     value = name,
 #     group_by = country.etc
 #   )
+
+# local disk cache
+shiny::shinyOptions(cache = cachem::cache_disk(here::here(".cache")))
+
+disconnected <- sever::sever_default(
+  title = "Disconnected",
+  subtitle = "Sorry your session timed-out or something went wrong",
+  button = "Reconnect",
+  button_class = "info"
+)
