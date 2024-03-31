@@ -107,53 +107,22 @@ mod_amex_ui <- function(id) {
                                  choices = date_intervals
                                ),
                                
-                               selectInput(
-                                 ns("group"),
-                                 label = "Group",
-                                 choices = c(purrr::set_names("no grouping", NULL), group_vars),
-                                 multiple = FALSE,
-                                 selectize = FALSE,
-                                 width = 200
-                               ),
-                               
-                               selectInput(
+                               shiny::selectizeInput(
                                  ns("display"),
                                  label = "Display",
                                  choices = time_serie_var,
                                  selected = time_serie_var[[1]],
                                  multiple = FALSE,
-                                 selectize = FALSE,
-                                 width = 200
+                                 width = "95%"
                                ),
                                
-                               # selectInput(
-                               #   ns("count_var"),
-                               #   label = count_vars_lab,
-                               #   choices = count_vars,
-                               #   multiple = FALSE,
-                               #   selectize = FALSE,
-                               #   width = 200
-                               # ),
-                               # shinyWidgets::radioGroupButtons(
-                               #   ns("bar_stacking"),
-                               #   label = bar_stacking_lab,
-                               #   size = "sm",
-                               #   status = "outline-dark",
-                               #   choices = c("Count" = "normal", "Percent" = "percent"),
-                               #   selected = "normal"
-                               # ),
-                               # shiny::checkboxInput(
-                               #   ns("cumulative"),
-                               #   cumul_data_lab,
-                               #   value = FALSE,
-                               #   width = "100%"
-                               # ),
-                               # shiny::checkboxInput(
-                               #   ns("show_ratio_line"),
-                               #   ratio_line_lab,
-                               #   value = FALSE,
-                               #   width = "100%"
-                               # )
+                               shiny::selectizeInput(
+                                 inputId = ns("group"),
+                                 label = "Group",
+                                 choices = c(purrr::set_names("no grouping", NULL), group_vars),
+                                 multiple = FALSE,
+                                 width = "95%"
+                               )
                              )), 
                            highchartOutput(ns("time_serie"))
                          ), 
@@ -163,19 +132,79 @@ mod_amex_ui <- function(id) {
                              class = "d-flex align-items-center",
                              # title 
                              "Global Parts"),
-                           leaflet::leafletOutput(ns("global_parts")) ), 
-                         
-                         bslib::card(
-                           bslib::card_header( 
-                             class = "d-flex align-items-center",
-                             # title 
-                             "Distribution"),
                            
-                           leaflet::leafletOutput(ns("distributions")))
+                           highchartOutput(ns("global_parts")) ), 
+                         
+                         
+                         # DISTRIBUTIONS CHARTS ========================================================
+                         navset_card_tab(
+                           full_screen = TRUE,
+                           wrapper = \(...) {
+                             bslib::card_body(..., padding = 0)
+                           },
+                           id = ns("dist_tabs"),
+                           title = div(
+                             class = "d-flex justify-content-between align-items-center",
+                             tags$span(
+                               class = "pe-2",
+                               tagList(shiny::icon("clock"), "Distributions")
+                             ),
+                             
+                             div(class = "pe-2",
+                                 
+                                 bslib::popover(
+                                   trigger = actionButton(
+                                     ns("dropdown"),
+                                     icon = shiny::icon("sliders"),
+                                     label = "Options",
+                                     class = "btn-light btn-sm pe-2 me-2"
+                                   ), 
+                                   
+                                   shinyWidgets::radioGroupButtons(
+                                     ns("dist_interval"),
+                                     label = "Date Interval",
+                                     size = "sm",
+                                     status = "outline-dark",
+                                     choices = date_intervals, 
+                                     selected = "year"
+                                   ),
+                                   
+                                   shiny::selectizeInput(
+                                     ns("dist_year"),
+                                     label = "Year",
+                                     choices = c(purrr::set_names("All years", NULL), init_year),
+                                     selected = init_year[[1]],
+                                     multiple = FALSE,
+                                     width = "100%"
+                                   ),
+                                   
+                                   shiny::selectizeInput(
+                                     ns("dist_var"),
+                                     label = "Display",
+                                     choices = dist_var,
+                                     selected = dist_var[[1]],
+                                     multiple = FALSE,
+                                     width = "100%"
+                                   )
+                                 )
+                             )
+                           ),
+                           nav_panel(
+                             title = shiny::icon("chart-line"),
+                             value = "boxplot",
+                             highcharter::highchartOutput(ns("dist_boxplot"))
+                           ),
+                           nav_panel(
+                             title = shiny::icon("chart-column"),
+                             value = "chart",
+                             highcharter::highchartOutput(ns("dist_hist"))
+                           )
+                           
+                         )
+                         
       )
       
-    ),
-    
+    )
     
   )
   
@@ -304,6 +333,7 @@ mod_amex_server <- function(id,
       
       # Prepare data 
       hc_df <- reactive( { 
+        y_var <- sym(input$display)
         
         if(input$date_interval == "month"){
           fmt_date <- "%Y-%m"
@@ -335,20 +365,21 @@ mod_amex_server <- function(id,
           summarise(
             .by = c(!!group_sym, date_group), 
             n_flights = n(), 
-            dist_km = sum(distance_km), 
-            dist_miles = sum(distance_miles), 
-            gross_amount = sum(gross_amount),
-            emission = sum(emission)
+            dist_km = round( sum(distance_km), digits = 1), 
+            dist_miles = round(sum(distance_miles), digits = 1), 
+            gross_amount = round(sum(gross_amount), digits = 1),
+            emission = round(sum(emission), digits = 1)
           ) %>% 
           
-          arrange(date_group)
+          arrange(date_group) %>% 
+          
+          mutate(lab = fmt_n(!!y_var) )
         
         return(df)
         
       })
       
       if(input$group == "no grouping") {
-        
         y_var <- sym(input$display)
         
         base_hc <- hchart(hc_df(), 
@@ -369,11 +400,132 @@ mod_amex_server <- function(id,
         
       }
       
-      return(base_hc)
+      base_hc %>%
+        
+        hc_xAxis(
+          type = "category",
+          crosshair = TRUE
+        ) %>%
+        
+        hc_xAxis(title = list(text = str_to_sentence(input$date_interval) )) %>% 
+        
+        hc_yAxis(title = list(text = matchmaker::match_vec(input$display, dict_time_lab, from = 1, to = 2)
+                              
+        )) %>% 
+        
+        hc_tooltip(useHTML = TRUE,
+                   formatter = JS("
+    function(){
+    outHTML =  '<b>' + this.point.lab
+     return(outHTML)
+     
+     }")
+        ) 
       
     })
     
     
+    # Distributions =======================================
+    
+    #observe Event for distirbution year input 
+    
+    observeEvent(input$date_range, {
+      
+      year_choices <- unique(amex_ready()$year)
+      
+      shiny::updateSelectizeInput("dist_year",
+                                  choices = c(purrr::set_names("All years", NULL), year_choices),
+                                  session = session
+      )
+      
+    }
+    
+    )
+    
+    # Histograms
+    output$dist_hist <- renderHighchart({
+      
+      req(amex_summary())
+      
+      dict_lab <- data.frame(from = unname(dist_var), 
+                             to = names(dist_var))
+      
+      
+      dist_var_sym <- sym(input$dist_var)
+      
+      if(input$dist_year != "All years"){
+        
+        hc_var <- amex_ready() %>% 
+          
+          filter(year == input$dist_year) %>% 
+          
+          pull(!!dist_var_sym)
+        
+      } else {
+        
+        hc_var <- amex_ready() %>% 
+          
+          pull(!!dist_var_sym)
+      }
+      
+      hchart(hc_var, 
+             
+             name = matchmaker::match_vec(input$dist_var, dict_lab, from = 1, to = 2) ) %>% 
+        
+        hc_xAxis(
+          plotLines = list(
+            list(
+              color = "red", 
+              zIndex = 1, 
+              value = median(hc_var),
+              label = list(text = paste("Median", median(hc_var), "days"), verticalAlign = "bottom", textAlign = "left")
+            )
+          )
+        ) 
+      
+    })
+    
+    # Boxplot
+    output$dist_boxplot <- renderHighchart({
+      
+      req(amex_summary())
+      
+      
+      dist_var_sym <- sym(input$dist_var)
+      date_interval_sym <- sym(input$dist_interval) 
+      
+      if(input$dist_year != "All years"){
+        
+        amex_box <- amex_ready() %>% 
+          filter(year == input$dist_year)
+        
+      } else {
+        
+        amex_box <- amex_ready()
+        
+      }
+      
+      box_df <- data_to_boxplot(amex_box, 
+                                !!dist_var_sym, 
+                                group_var = !!date_interval_sym,
+                                name = matchmaker::match_vec(input$dist_var, dict_lab, from = 1, to = 2), 
+                                #showInLegend = FALSE
+      )
+      
+      highchart() %>%
+        hc_chart(zoomType = "x") %>%
+        hc_xAxis(
+          type = "category",
+          crosshair = TRUE
+        ) %>%
+        hc_yAxis(
+          title = list(text = matchmaker::match_vec(input$dist_var, dict_lab, from = 1, to = 2))
+        ) %>%
+        
+        hc_add_series_list(box_df) %>%
+        
+        hc_tooltip(shared = TRUE) 
+    })
     
     # Map ==================================================
     

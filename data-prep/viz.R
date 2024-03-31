@@ -19,13 +19,38 @@ paths <- set_paths()
 
 # Import amex clean data 
 
-dat <- import(fs::path(paths$maelle_charrier_tool, "Data", "clean", "amex_clean.rds"))
+dat <- import(fs::path(paths$maelle_charrier_tool, "Data", "clean", "amex_clean.rds")) %>% mutate(year = year(invoice_date))
 
 names(dat)
 
+fmt_n <- function(n) {
+  
+  if (is.na(n)) {
+    out <- "(Unknown)"
+    return(out)
+    
+  } else if (n < 1000) {
+    out <-  n
+    
+    return(out)
+    
+  } else {
+    out <- scales::number(
+      n,
+      accuracy = .1,
+      scale_cut = c(0, K = 1e3, M = 1e6))
+    
+    return( stringr::str_remove(out, "\\.0"))
+  }
+}
+fmt_n <- Vectorize(fmt_n)
+fmt_n(dat$emission)
+
+mean(dat$emission)
+
 # Time - series -------------------------------------------------------------------------
 
-group <-  "no grouping"
+group <- "no grouping"
 
 df <- dat %>% 
   
@@ -36,8 +61,9 @@ df <- dat %>%
             dist_km = sum(distance_km), 
             dist_miles = sum(distance_miles), 
             gross_amount = sum(gross_amount),
-            emission = sum(emission)
+            emission = round(digits = 1, sum(emission))
   ) %>% 
+  mutate(label = fmt_n(emission)) %>% 
   
   arrange(date_group)
 
@@ -45,7 +71,16 @@ df <- dat %>%
 hchart(df,
        "column", 
        hcaes(x = date_group, 
-             y = emission ))
+             y = emission )) %>% 
+  
+  hc_tooltip(useHTML = TRUE,
+             formatter = JS("
+    function(){
+    outHTML =  '<b>' + this.point.label
+     return(outHTML)
+     
+     }")
+  ) 
 
 
 
@@ -75,3 +110,23 @@ hc_colors(hc_pal) %>%
     y = 40
   ) %>%
   my_hc_export()
+
+
+# Distribution  -------------------------------------------------------------------------
+
+
+
+hchart(filter(dat, year == "2019")$emission) %>% 
+  hc_add_series(type = "histogram", filter(dat, year == "2020")$emission) 
+hc_add_series(filter(dat, year == "2021")$emission) %>% 
+  hc_add_series(filter(dat, year == "2022")$emission) %>% 
+  hc_add_series(filter(dat, year == "2023")$emission) %>% 
+  hc_add_series(filter(dat, year == "2024")$emission) %>% 
+  
+  hc_tooltip(share = TRUE)
+
+
+
+
+
+

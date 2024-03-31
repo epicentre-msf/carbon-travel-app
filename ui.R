@@ -1,4 +1,3 @@
-
 ui <- tagList(
   tags$head(
     tags$style(".value-box-area {padding: 5px !important;}"),
@@ -13,9 +12,17 @@ ui <- tagList(
   
   page_navbar(
     title = "MSF Carbon Travel App",
+    fillable = TRUE,
+    collapsible = TRUE,
+    inverse = FALSE,
     theme = bs_theme(
-      bootswatch = "minty",
-      font_scale = .8,
+      base_font = font_google(
+        app_font, 
+        wght = c(300, 400, 500, 600, 700, 800),
+        ital = c(0, 1)
+      ),
+      font_scale = 0.8,
+      bootswatch = "minty", 
       "navbar-bg" = "#f8f9fa"
     ),
     
@@ -36,6 +43,14 @@ ui <- tagList(
     
     # nav images and links 
     nav_spacer(),
+    nav_item(
+      tags$a(
+        shiny::icon("github"),
+        "Report an issue",
+        href = "https://github.com/epicentre-msf/carbon-travel-app/issues",
+        target = "_blank"
+      )
+    ),
     nav_item(
       tags$a(
         tags$img(

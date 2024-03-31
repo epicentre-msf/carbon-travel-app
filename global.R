@@ -47,7 +47,17 @@ cities <- air_msf %>%
 # Get AMEX data 
 df_amex <- read_rds(here::here("data", "amex", "amex_clean.rds"))
 
+#add data 
+
+df_amex <- df_amex %>% 
+  mutate(year = year(invoice_date), 
+         quarter = str_replace(lubridate::quarter(invoice_date, 
+                                                  with_year = TRUE), "\\.", "-Q"), 
+         month = format(invoice_date, "%Y-%m")
+         )
+
 #date range 
+init_year <- unique(df_amex$year)
 init_date_range <- format(seq.Date(min(df_amex$invoice_date), max(df_amex$invoice_date), by = "month"), "%Y-%m")
 min_date <- min(init_date_range)
 max_date <- max(init_date_range)
