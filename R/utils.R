@@ -12,7 +12,30 @@ frmt_num <- function(x, accuracy = .1) {
   n
 }
 
-#' @noRd
+
+fmt_n <- function(n) {
+  
+  if (is.na(n)) {
+    out <- "(Unknown)"
+    return(out)
+    
+  } else if (n < 1000) {
+    out <-  n
+    
+    return(out)
+    
+  } else {
+    out <- scales::number(
+      n,
+      accuracy = .1,
+      scale_cut = c(0, K = 1e3, M = 1e6))
+    
+    return( stringr::str_remove(out, "\\.0"))
+  }
+}
+fmt_n <- Vectorize(fmt_n)
+
+
 force_reactive <- function(x) {
   if (shiny::is.reactive(x)) {
     x()

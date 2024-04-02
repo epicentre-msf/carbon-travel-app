@@ -12,7 +12,6 @@ ui <- tagList(
   
   page_navbar(
     title = "MSF Carbon Travel App",
-    fillable = TRUE,
     collapsible = TRUE,
     inverse = FALSE,
     theme = bs_theme(
@@ -29,6 +28,7 @@ ui <- tagList(
     nav_panel(
       "Meeting Place Planner",
       layout_sidebar(
+        fillable = TRUE,
         sidebar = sidebar(
           width = 300,
           gap = 0,

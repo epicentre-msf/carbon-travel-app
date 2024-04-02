@@ -15,6 +15,8 @@ pacman::p_load(
 library(highcharter)
 
 source("R/set_paths.R")
+source("R/utils.R")
+
 paths <- set_paths()
 
 # Import amex clean data 
@@ -23,93 +25,64 @@ dat <- import(fs::path(paths$maelle_charrier_tool, "Data", "clean", "amex_clean.
 
 names(dat)
 
-fmt_n <- function(n) {
-  
-  if (is.na(n)) {
-    out <- "(Unknown)"
-    return(out)
-    
-  } else if (n < 1000) {
-    out <-  n
-    
-    return(out)
-    
-  } else {
-    out <- scales::number(
-      n,
-      accuracy = .1,
-      scale_cut = c(0, K = 1e3, M = 1e6))
-    
-    return( stringr::str_remove(out, "\\.0"))
-  }
-}
-fmt_n <- Vectorize(fmt_n)
-fmt_n(dat$emission)
-
-mean(dat$emission)
-
 # Time - series -------------------------------------------------------------------------
 
-group <- "no grouping"
+group_var <- "org"
+
 
 df <- dat %>% 
   
-  mutate(date_group = format(floor_date(invoice_date, "month"), "%Y-%m")) %>%  
+  mutate(date_group = format(floor_date(invoice_date, "month"), "%Y-%m"),
+         date_group = fct_relevel(date_group)
+  ) %>% 
   
-  summarise(.by = c(date_group), 
+  summarise(.by = c(org, date_group), 
             n_flights = n(), 
             dist_km = sum(distance_km), 
             dist_miles = sum(distance_miles), 
             gross_amount = sum(gross_amount),
             emission = round(digits = 1, sum(emission))
   ) %>% 
-  mutate(label = fmt_n(emission)) %>% 
   
-  arrange(date_group)
+  mutate(date_group = fct_relevel(date_group)) %>% 
+  
+  arrange(date_group) %>% 
+  
+  mutate(.by = org,
+         label = fmt_n(emission), 
+         cumm_sum = cumsum(emission))
+
+
+
+
 
 #1. Emissions 
-hchart(df,
-       "column", 
-       hcaes(x = date_group, 
-             y = emission )) %>% 
+
+highchart() %>% 
   
-  hc_tooltip(useHTML = TRUE,
-             formatter = JS("
-    function(){
-    outHTML =  '<b>' + this.point.label
-     return(outHTML)
-     
-     }")
-  ) 
+  hc_yAxis_multiples(
+    list(lineWidth = 3),
+    list(showLastLabel = FALSE, 
+         opposite = TRUE)) %>% 
+  
+  hc_add_series(df,
+                "spline", 
+                hcaes(x = date_group, 
+                      y = cumm_sum, 
+                      group = org), 
+                showInLegend = TRUE) %>% 
+  
+  hc_add_series(df, 
+                "column", 
+                hcaes(x = date_group, 
+                      y = emission, 
+                      group = org),
+                yAxis = 0, 
+                showInLegend = TRUE) %>% 
+  
+  
+  hc_xAxis(categories = levels(df$date_group))
 
-
-
-
-hc_colors(hc_pal) %>%
-  hc_xAxis(type = x_type, title = list(text = date_lab), crosshair = TRUE) %>%
-  highcharter::hc_yAxis_multiples(
-    list(
-      title = list(text = isolate(var_lab())),
-      allowDecimals = FALSE
-    ),
-    list(
-      title = list(text = ""),
-      allowDecimals = FALSE,
-      opposite = TRUE,
-      linkedTo = 0
-    )
-  ) %>%
-  hc_tooltip(shared = TRUE) %>%
-  hc_credits(enabled = FALSE) %>%
-  hc_legend(
-    title = list(text = ""),
-    layout = "vertical",
-    align = "right",
-    verticalAlign = "top",
-    x = -10,
-    y = 40
-  ) %>%
-  my_hc_export()
 
 
 # Distribution  -------------------------------------------------------------------------
@@ -125,8 +98,79 @@ hc_add_series(filter(dat, year == "2021")$emission) %>%
   
   hc_tooltip(share = TRUE)
 
+# Global parts ================== ================== ================== ================== ==================
+
+group <- "reason_travel"
+
+group_sym <- sym(group)
+
+var <- "emission"
+var_sym <- sym(var)
+
+df <- dat %>% 
+  drop_na(!!group_sym) %>% 
+  
+  summarise(.by = c(!!group_sym), 
+            n_flights = n(), 
+            dist_km = sum(distance_km), 
+            dist_miles = sum(distance_miles), 
+            gross_amount = sum(gross_amount),
+            emission = round(digits = 1, sum(emission))
+  ) %>% 
+  
+  mutate(label = fmt_n(emission), 
+         percent = scales::percent(!!var_sym/sum(!!var_sym), accuracy = .1 ) ) %>% 
+  
+  rename(group_var = all_of(group)) %>% 
+  
+  arrange(desc(group_var)) 
 
 
 
+hchart(df, 
+       "column", 
+       hcaes(x = group_var, 
+             y = emission)) %>% 
+  
+  hc_tooltip(useHTML = TRUE,
+             formatter = JS("
+    function(){
+    outHTML =  '<b><i>' + this.point.group_var + '</i> <br>' + this.point.label + ' (' + this.point.percent + ')' 
+     return(outHTML)
+     
+     }")
+  )
 
+# Geo Table ================== ================== ================== ================== ==================
+
+geo_tab <- dat %>% 
+  summarise(.by = dest, 
+            n_flights = n(), 
+            emission = sum(emission), 
+            main_org = org[max(n())]
+            
+  ) %>%
+  
+  mutate(emission_pct = scales::percent(emission / sum(emission)), 
+         emission = fmt_n(emission), 
+         emission = paste0(emission, " (", emission_pct, ")")) %>% 
+  
+  select(-emission_pct) %>% 
+  
+  arrange(desc(n_flights)) %>% 
+  
+  head(n = 20)
+
+reactable(geo_tab, 
+          highlight = TRUE,
+          searchable = TRUE,
+          compact = TRUE,
+          
+          defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
+          columns = list(
+            dest = colDef("Destination", align = "left"),
+            n_flights = colDef("N Flights"), 
+            emission = colDef("Emissions (tCO2e)"), 
+            main_org = colDef("Main organisation") 
+          ) )
 

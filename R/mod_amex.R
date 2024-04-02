@@ -6,6 +6,7 @@ mod_amex_ui <- function(id) {
     "Flight data analysis",
     
     layout_sidebar(
+      fillable = FALSE,
       sidebar = sidebar(
         width = 300,
         gap = 0,
@@ -36,6 +37,7 @@ mod_amex_ui <- function(id) {
           options = list(placeholder = "All", plugins = "remove_button")
         )
       ),
+      
       # VALUE BOXES ========================
       layout_column_wrap(
         width = 1/5,
@@ -77,14 +79,34 @@ mod_amex_ui <- function(id) {
       
       layout_column_wrap(width = 1 / 2,
                          
-                         bslib::card(
-                           bslib::card_header( 
-                             class = "d-flex align-items-center",
-                             # title 
-                             "Map"), 
-                           leaflet::leafletOutput(ns("map"))), 
+                         navset_card_tab(
+                           full_screen = TRUE,
+                           wrapper = \(...) {
+                             bslib::card_body(..., padding = 0)
+                           },
+                           id = ns("geo_tabs"),
+                           title = div(
+                             class = "d-flex justify-content-between align-items-center",
+                             tags$span(
+                               class = "pe-2",
+                               tagList(shiny::icon("clock"), "Map")
+                             )
+                           ),
+                           nav_panel(
+                             title = shiny::icon("map"),
+                             value = "map",
+                             highcharter::highchartOutput(ns("map"))
+                           ),
+                           nav_panel(
+                             title = shiny::icon("table"),
+                             value = "table",
+                             reactableOutput(ns("table"))
+                           )
+                           
+                         ), 
                          
                          bslib::card(
+                           full_screen = TRUE,
                            
                            bslib::card_header( 
                              class = "d-flex align-items-center",
@@ -110,8 +132,8 @@ mod_amex_ui <- function(id) {
                                shiny::selectizeInput(
                                  ns("display"),
                                  label = "Display",
-                                 choices = time_serie_var,
-                                 selected = time_serie_var[[1]],
+                                 choices = display_var,
+                                 selected = display_var[[1]],
                                  multiple = FALSE,
                                  width = "95%"
                                ),
@@ -128,12 +150,31 @@ mod_amex_ui <- function(id) {
                          ), 
                          
                          bslib::card(
+                           full_screen = TRUE,
+                           
                            bslib::card_header( 
                              class = "d-flex align-items-center",
                              # title 
-                             "Global Parts"),
+                             "Bar plots", 
+                             
+                             shiny::selectizeInput(
+                               ns("bar_var"),
+                               label = "Display",
+                               choices = display_var,
+                               selected = display_var[[1]],
+                               multiple = FALSE,
+                               width = "30%"
+                             ),
+                             shiny::selectizeInput(
+                               ns("bar_group"),
+                               label = "Group",
+                               choices = bar_group,
+                               selected = bar_group[[1]],
+                               multiple = FALSE,
+                               width = "25%"
+                             )),
                            
-                           highchartOutput(ns("global_parts")) ), 
+                           highchartOutput(ns("barplot")) ), 
                          
                          
                          # DISTRIBUTIONS CHARTS ========================================================
@@ -356,7 +397,8 @@ mod_amex_server <- function(id,
           df <- amex_ready() %>% 
             mutate(
               date_group = floor_date(invoice_date, input$date_interval), 
-              date_group = format.Date(date_group, format = fmt_date)
+              date_group = format.Date(date_group, format = fmt_date), 
+              date_group = fct_relevel(date_group)
             ) 
           
         }
@@ -373,7 +415,9 @@ mod_amex_server <- function(id,
           
           arrange(date_group) %>% 
           
-          mutate(lab = fmt_n(!!y_var) )
+          mutate(lab = fmt_n(!!y_var), 
+                 
+                 cumm_sum = cumsum(!!y_var))
         
         return(df)
         
@@ -382,45 +426,73 @@ mod_amex_server <- function(id,
       if(input$group == "no grouping") {
         y_var <- sym(input$display)
         
-        base_hc <- hchart(hc_df(), 
-                          "column", 
-                          hcaes(x = date_group, 
-                                y = !!y_var))
+        base_hc <- highchart() %>% 
+          
+          # hc_yAxis_multiples(
+          #   list(lineWidth = 3),
+          #   list(showLastLabel = FALSE, 
+          #        opposite = TRUE)
+          # ) %>%
+          
+          # hc_add_series(hc_df(), 
+          #               "spline", 
+          #               hcaes(x = date_group, 
+          #                     y = cumm_sum), 
+        #               yAxis = 1) %>% 
         
+        hc_add_series(hc_df(),
+                      "column", 
+                      hcaes(x = date_group, 
+                            y = !!y_var)
+                      
+        )
       } else { 
         
         y_var <- sym(input$display)
         
         # Not in right x order if group is org 
-        base_hc <- hchart(hc_df(), 
-                          "column", 
-                          hcaes(x = date_group, 
-                                y = !!y_var, 
-                                group = !!group_sym))
+        base_hc <- highchart() %>% 
+          
+          # hc_yAxis_multiples(
+          #   title = list(text = matchmaker::match_vec(input$display, display_lab, from = 1, to = 2)),
+          #   list(lineWidth = 3),
+          #   list(showLastLabel = FALSE, 
+          #        opposite = TRUE)
+          # ) %>%
+          # 
+          # hc_add_series(hc_df(),
+          #               "spline",
+          #               hcaes(x = date_group,
+        #                     y = cumm_sum,
+        #                     group = !!group_sym),
+        #               yAxis = 1) %>%
+        
+        hc_add_series(hc_df(),
+                      "column", 
+                      hcaes(x = date_group, 
+                            y = !!y_var, 
+                            group = !!group_sym)
+        )
         
       }
       
       base_hc %>%
         
-        hc_xAxis(
-          type = "category",
-          crosshair = TRUE
-        ) %>%
+        hc_xAxis(title = list(text = str_to_sentence(input$date_interval)), 
+                 categories = levels(hc_df()$date_group)) %>% 
         
-        hc_xAxis(title = list(text = str_to_sentence(input$date_interval) )) %>% 
-        
-        hc_yAxis(title = list(text = matchmaker::match_vec(input$display, dict_time_lab, from = 1, to = 2)
+        hc_yAxis(title = list(text = matchmaker::match_vec(input$display, display_lab, from = 1, to = 2)
                               
-        )) %>% 
+        )) %>%
         
         hc_tooltip(useHTML = TRUE,
                    formatter = JS("
-    function(){
-    outHTML =  '<b>' + this.point.lab
-     return(outHTML)
-     
-     }")
-        ) 
+      function(){
+      outHTML =  '<i>' + this.point.date_group +'</i><b><br>' + this.point.lab + '</b>'
+       return(outHTML)
+
+       }")
+        )
       
     })
     
@@ -431,7 +503,7 @@ mod_amex_server <- function(id,
     
     observeEvent(input$date_range, {
       
-      year_choices <- unique(amex_ready()$year)
+      year_choices <- sort(unique(amex_ready()$year), decreasing = TRUE)
       
       shiny::updateSelectizeInput("dist_year",
                                   choices = c(purrr::set_names("All years", NULL), year_choices),
@@ -527,7 +599,87 @@ mod_amex_server <- function(id,
         hc_tooltip(shared = TRUE) 
     })
     
-    # Map ==================================================
+    # Global parts ========================================
+    output$barplot <- renderHighchart({
+      
+      bar_var_sym <- sym(input$bar_var)
+      
+      bar_group_sym <- sym(input$bar_group)
+      
+      hc_df <- amex_ready() %>% 
+        
+        #filter out Nas for group var
+        drop_na(!!bar_group_sym) %>% 
+        
+        summarise(.by = c(!!bar_group_sym), 
+                  n_flights = n(), 
+                  dist_km = sum(distance_km), 
+                  dist_miles = sum(distance_miles), 
+                  gross_amount = sum(gross_amount),
+                  emission = round(digits = 1, sum(emission))
+        ) %>% 
+        mutate(label = fmt_n(!!bar_var_sym), 
+               percent = scales::percent(!!bar_var_sym/sum(!!bar_var_sym), accuracy = .1 )) %>% 
+        
+        rename(group_var = input$bar_group) %>% 
+        
+        arrange(desc(group_var))
+      
+      
+      hchart(hc_df, 
+             "column", 
+             hcaes(x = group_var, 
+                   y = !!bar_var_sym)) %>% 
+        
+        hc_tooltip(useHTML = TRUE,
+                   formatter = JS("
+    function(){
+    outHTML =  '<i>' + this.point.group_var + '</i> <br> <b>' + this.point.label + ' (' + this.point.percent + ')</b>' 
+     return(outHTML)
+     
+     }") ) %>% 
+        
+        hc_chart(inverted=TRUE)
+      
+    })
     
+    # GEO TABLE ==========================================
+    
+    output$table <- renderReactable({
+      
+      geo_tab <- amex_ready() %>% 
+        summarise(.by = dest, 
+                  n_flights = n(), 
+                  emission = sum(emission), 
+                  main_org = org[max(n())]
+                  
+        ) %>%
+        
+        mutate(emission_pct = scales::percent(emission / sum(emission)), 
+               emission = fmt_n(emission), 
+               emission = paste0(emission, " (", emission_pct, ")")) %>% 
+        
+        select(-emission_pct) %>% 
+        
+        arrange(desc(n_flights)) %>% 
+        
+        head(n = 20)
+      
+      reactable(geo_tab, 
+                highlight = TRUE,
+                searchable = TRUE,
+                compact = TRUE,
+                defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
+                columns = list(
+                  dest = colDef("Destination", align = "left"),
+                  n_flights = colDef("N Flights"), 
+                  emission = colDef("Emissions (tCO2e)"), 
+                  main_org = colDef("Main organisation") 
+                ) )
+      
+    }
+    )
+    
+    # Map ==================================================
     
   })}

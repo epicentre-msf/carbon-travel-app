@@ -4,6 +4,7 @@ library(bslib)
 library(tidyverse)
 library(gt)
 library(highcharter)
+library(reactable)
 source(here::here("R", "set_paths.R"))
 source(here::here("R", "utils_labels.R"))
 source(here::here("R", "utils.R"))
@@ -54,7 +55,7 @@ df_amex <- df_amex %>%
          quarter = str_replace(lubridate::quarter(invoice_date, 
                                                   with_year = TRUE), "\\.", "-Q"), 
          month = format(invoice_date, "%Y-%m")
-         )
+  )
 
 #date range 
 init_year <- unique(df_amex$year)
