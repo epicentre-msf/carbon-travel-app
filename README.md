@@ -23,12 +23,8 @@ The App currently uses
 - AMEX data as provided from the API 
 
 # To do on App 
-
-- [ ] Add a Time serie graph 
-- [ ] Add a Map 
 - [ ] Add a download data button - No sensitive data 
 - [ ] Add a Tab for calculating one travel 
-
 
 # Roadmap
 - [ ] Compile all flight travel data together 
