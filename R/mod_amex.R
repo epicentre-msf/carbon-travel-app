@@ -40,7 +40,7 @@ mod_amex_ui <- function(id) {
       
       # VALUE BOXES ========================
       layout_column_wrap(
-        width = 1/5,
+        width = 1/4,
         fill = FALSE,
         value_box(
           title = "Flights",
@@ -48,19 +48,7 @@ mod_amex_ui <- function(id) {
           class = "vb",
           value = textOutput(ns("flight")),
         ),
-        value_box(
-          title = "Routes",
-          theme = "primary",
-          class = "vb",
-          value = textOutput(ns("segment")),
-        ),
-        value_box(
-          title = "Main route",
-          theme = "primary",
-          class = "vb",
-          value = textOutput(ns("main_segment")),
-          uiOutput(ns("main_segment_info"))
-        ),
+        
         value_box(
           title = "Total Distance",
           theme = "primary",
@@ -68,13 +56,31 @@ mod_amex_ui <- function(id) {
           value = textOutput(ns("dist")),
           uiOutput(ns("dist_info"))
         ),
+        
         value_box(
           title = "Total Emissions",
           theme = "primary",
           class = "vb",
           value = textOutput(ns("emission")),
-          #uiOutput(ns("emission_info"))
-        )
+          uiOutput(ns("emission_info"))
+        ), 
+        
+        value_box(
+          title = "Routes",
+          theme = "primary",
+          class = "vb",
+          value = textOutput(ns("segment")),
+        ),
+        
+        # value_box(
+        #   title = "Main route",
+        #   theme = "primary",
+        #   class = "vb",
+        #   value = textOutput(ns("main_segment")),
+        #   uiOutput(ns("main_segment_info"))
+        # )
+        
+        
       ), 
       
       layout_column_wrap(width = 1 / 2,
@@ -315,7 +321,8 @@ mod_amex_server <- function(id,
           main_seg_n = main_segment %>% filter(row_number() == 1) %>% pull(n),
           tot_distance_miles = frmt_num(sum(distance_km)),
           tot_distance_km = frmt_num(sum(distance_miles)),
-          tot_emissions = frmt_num(sum(emission))
+          tot_emissions = frmt_num(sum(emission)), 
+          emission_km = frmt_num(round(digits = 2, sum(emission)/sum(distance_km)))
         )
       
       return(dat_summ)
@@ -331,7 +338,7 @@ mod_amex_server <- function(id,
     
     output$segment <- renderText({
       req(amex_summary())
-      paste(amex_summary()$n_segment, " Unique routes")
+      paste(amex_summary()$n_segment, " unique")
     })
     
     output$main_segment <- renderText({
@@ -346,7 +353,7 @@ mod_amex_server <- function(id,
     
     output$dist <- renderText({
       req(amex_summary())
-      paste(amex_summary()$tot_distance_km, " kilometers")
+      paste(amex_summary()$tot_distance_km, " km")
     })
     
     output$dist_info <- renderUI({
@@ -357,8 +364,15 @@ mod_amex_server <- function(id,
     })
     
     output$emission <- renderText({
+      
       req(amex_summary())
-      paste(amex_summary()$tot_emissions, "CO2 emissions")
+      paste(amex_summary()$tot_emissions, " tCO2e")
+    })
+    
+    output$emission_info <-  renderText({
+      req(amex_summary())
+      
+      paste(amex_summary()$emission_km, "tCO2e per Km")
     })
     
     # Time-Series ===========================================
