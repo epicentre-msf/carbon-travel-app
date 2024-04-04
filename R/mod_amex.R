@@ -70,17 +70,7 @@ mod_amex_ui <- function(id) {
           theme = "primary",
           class = "vb",
           value = textOutput(ns("segment")),
-        ),
-        
-        # value_box(
-        #   title = "Main route",
-        #   theme = "primary",
-        #   class = "vb",
-        #   value = textOutput(ns("main_segment")),
-        #   uiOutput(ns("main_segment_info"))
-        # )
-        
-        
+        )
       ), 
       
       layout_column_wrap(width = 1 / 2,
@@ -163,24 +153,32 @@ mod_amex_ui <- function(id) {
                              # title 
                              "Bar plots", 
                              
-                             shiny::selectizeInput(
-                               ns("bar_var"),
-                               label = "Display",
-                               choices = display_var,
-                               selected = display_var[[1]],
-                               multiple = FALSE,
-                               width = "30%"
-                             ),
-                             shiny::selectizeInput(
-                               ns("bar_group"),
-                               label = "Group",
-                               choices = bar_group,
-                               selected = bar_group[[1]],
-                               multiple = FALSE,
-                               width = "25%"
+                             bslib::popover(
+                               trigger = actionButton(
+                                 ns("dropdown"),
+                                 icon = shiny::icon("sliders"),
+                                 label = "Options",
+                                 class = "btn-light btn-sm pe-2 me-2"
+                               ), 
+                               
+                               shiny::selectizeInput(
+                                 ns("bar_var"),
+                                 label = "Display",
+                                 choices = display_var,
+                                 selected = display_var[[1]],
+                                 multiple = FALSE
+                               ),
+                               shiny::selectizeInput(
+                                 ns("bar_group"),
+                                 label = "Group",
+                                 choices = bar_group,
+                                 selected = bar_group[[1]],
+                                 multiple = FALSE
+                               )
                              )),
                            
-                           highchartOutput(ns("barplot")) ), 
+                           highchartOutput(ns("barplot")) 
+                         ), 
                          
                          
                          # DISTRIBUTIONS CHARTS ========================================================
@@ -310,7 +308,10 @@ mod_amex_server <- function(id,
     # Summary amex_ready() for value boxes
     amex_summary <- reactive({
       
-      main_segment <- amex_ready() %>% count(ori, dest) %>% mutate(segment = paste(ori, dest, sep = "-")) %>% arrange(desc(n))
+      main_segment <- amex_ready() %>% 
+        count(ori, dest) %>% 
+        mutate(segment = paste(ori, dest, sep = "-")) %>% 
+        arrange(desc(n))
       
       dat_summ <- amex_ready() %>%
         
@@ -339,16 +340,6 @@ mod_amex_server <- function(id,
     output$segment <- renderText({
       req(amex_summary())
       paste(amex_summary()$n_segment, " unique")
-    })
-    
-    output$main_segment <- renderText({
-      req(amex_summary())
-      paste(amex_summary()$main_seg)
-    })
-    
-    output$main_segment_info <- renderUI({
-      req(amex_summary())
-      tags$small(glue::glue("travelled {amex_summary()$main_seg_n} times"))
     })
     
     output$dist <- renderText({
@@ -384,7 +375,6 @@ mod_amex_server <- function(id,
       # Set filters 
       if(input$group != "no grouping"){
         group_sym <- sym(input$group)} else { group_sym <- NULL}
-      
       
       # Prepare data 
       hc_df <- reactive( { 
@@ -440,52 +430,22 @@ mod_amex_server <- function(id,
       if(input$group == "no grouping") {
         y_var <- sym(input$display)
         
-        base_hc <- highchart() %>% 
-          
-          # hc_yAxis_multiples(
-          #   list(lineWidth = 3),
-          #   list(showLastLabel = FALSE, 
-          #        opposite = TRUE)
-          # ) %>%
-          
-          # hc_add_series(hc_df(), 
-          #               "spline", 
-          #               hcaes(x = date_group, 
-          #                     y = cumm_sum), 
-        #               yAxis = 1) %>% 
-        
-        hc_add_series(hc_df(),
-                      "column", 
-                      hcaes(x = date_group, 
-                            y = !!y_var)
-                      
+        base_hc <- hchart(hc_df(),
+                          "column", 
+                          hcaes(x = date_group, 
+                                y = !!y_var)
+                          
         )
       } else { 
         
         y_var <- sym(input$display)
         
         # Not in right x order if group is org 
-        base_hc <- highchart() %>% 
-          
-          # hc_yAxis_multiples(
-          #   title = list(text = matchmaker::match_vec(input$display, display_lab, from = 1, to = 2)),
-          #   list(lineWidth = 3),
-          #   list(showLastLabel = FALSE, 
-          #        opposite = TRUE)
-          # ) %>%
-          # 
-          # hc_add_series(hc_df(),
-          #               "spline",
-          #               hcaes(x = date_group,
-        #                     y = cumm_sum,
-        #                     group = !!group_sym),
-        #               yAxis = 1) %>%
-        
-        hc_add_series(hc_df(),
-                      "column", 
-                      hcaes(x = date_group, 
-                            y = !!y_var, 
-                            group = !!group_sym)
+        base_hc <- hchart(hc_df(),
+                          "column", 
+                          hcaes(x = date_group, 
+                                y = !!y_var, 
+                                group = !!group_sym)
         )
         
       }
@@ -513,7 +473,7 @@ mod_amex_server <- function(id,
     
     # Distributions =======================================
     
-    #observe Event for distirbution year input 
+    #observe Event for distribution year input 
     
     observeEvent(input$date_range, {
       
@@ -635,15 +595,17 @@ mod_amex_server <- function(id,
         mutate(label = fmt_n(!!bar_var_sym), 
                percent = scales::percent(!!bar_var_sym/sum(!!bar_var_sym), accuracy = .1 )) %>% 
         
-        rename(group_var = input$bar_group) %>% 
+        rename("group_var" = input$bar_group ) %>% 
         
-        arrange(desc(group_var))
-      
+        arrange(desc(!!bar_var_sym))
       
       hchart(hc_df, 
              "column", 
              hcaes(x = group_var, 
                    y = !!bar_var_sym)) %>% 
+        
+        hc_yAxis(title = list(text = matchmaker::match_vec(input$bar_var, display_lab, from = 1, to = 2)) ) %>% 
+        hc_xAxis(title = list(text = matchmaker::match_vec(input$bar_group, dict_bar_group, from = 1, to = 2)) ) %>% 
         
         hc_tooltip(useHTML = TRUE,
                    formatter = JS("

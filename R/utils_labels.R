@@ -9,13 +9,13 @@ group_vars <- c(
   "Flight cat" = "distance_km_cat"
 )
 display_var <- c( "Emissions (tCO2e)" = "emission",
-                     "Expenses ($)" = "gross_amount",
-                     "Flights" = "n_flights", 
-                     "Distance (Km)" = "dist_km", 
-                     "Distance (Miles)" = "dist_miles")
+                  "Expenses ($)" = "gross_amount",
+                  "Flights" = "n_flights", 
+                  "Distance (Km)" = "dist_km", 
+                  "Distance (Miles)" = "dist_miles")
 
 display_lab <- data.frame(from = unname(display_var), 
-                            to = names(display_var))
+                          to = names(display_var))
 
 dist_var <- c( "Emissions (tCO2e)" = "emission",
                "Expenses ($)" = "gross_amount",
@@ -29,3 +29,6 @@ bar_group <- c(
   "Organisation" = "org",
   "Reason for travel" = "reason_travel",
   "Year" = "year")
+
+dict_bar_group <- data.frame(from = unname(bar_group), 
+                       to = names(bar_group))
