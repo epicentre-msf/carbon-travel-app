@@ -46,7 +46,11 @@ clean_path <- fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "data", "clean
 country_codes  <- import(fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "Data", "country_codes.xlsx")) %>% clean_names() %>% rename(mission_name = name) %>% as_tibble()
 
 dir_ls <- fs::dir_ls(fs::path(raw_path, "amex-data"), regexp = "ALLMSF")
-myfiles <- lapply(dir_ls, rio::import, skip = 5)
+myfiles <- lapply(dir_ls, rio::import, skip = 5, guess_max = 10000000) 
+
+names(myfiles) <- c("amex_2019", "amex_2020", "amex_2021", "amex_2022", "amex_2023", "amex_2024")
+
+myfiles <- purrr::map(myfiles, ~ .x %>% as_tibble() %>% clean_names())
 
 #bind all together
 amex  <- myfiles %>% bind_rows() %>% as_tibble()
@@ -54,9 +58,12 @@ amex  <- myfiles %>% bind_rows() %>% as_tibble()
 # Clean data ----------
 
 amex_clean <- amex %>%
+  
   clean_names() %>%
+  
   rename(
     org = client_id_name,
+    flight_type = domestic_international,
     distance_km = flight_kilometers,
     distance_miles = flight_mileage,
     carrier = carrier_validating,
@@ -99,17 +106,39 @@ amex_clean <- amex %>%
                                     "r11" ~ "Personal travel (subaccount)", 
                                     .default = NA
          ), 
-         mission_id = str_to_upper(str_extract(mission, "[a-z]{2}"))
+         mission_id = str_to_upper(str_extract(mission, "[a-z]{2}")), 
+         flight_type = case_match(flight_type, "domestic" ~ NA, 
+                                  .default = flight_type)
+         
   )  %>% 
+  
   # deal with numeric variables
   mutate(across(c(distance_miles, distance_km, gross_amount, net_amount), ~ as.numeric(.x))) %>%
+  
   # clean dates
-  mutate(invoice_date = ymd(invoice_date)) %>% 
+  mutate(invoice_date = ymd(invoice_date), 
+         month = floor_date(invoice_date, "month"), 
+         month = format(month, "%Y-%m"),
+         quarter = lubridate::quarter(invoice_date, with_year = TRUE), 
+         quarter = str_replace(quarter, "\\.", "-Q"), 
+         year = floor_date(invoice_date, "year"),
+         year = format(year, "%Y")
+  ) %>% 
+  
+  #fix NAs 
+  
+  mutate(across(c(reason_travel, flight_type), ~ if_else(is.na(.x), "Missing",.x))) %>% 
+  
+  relocate(c(month, quarter, year), .after = invoice_date) %>% 
+  
   arrange(ticket_number, traveler_name) %>% 
+  
   #id the flight that were refunded and remove them 
   mutate(.by = c(ticket_number, traveler_name, dest_code, ori_code), 
          refunded = sum(distance_km) == 0) %>% 
+  
   filter(refunded == FALSE) %>% 
+  
   #remove the remaining negative
   filter(distance_km >= 0) %>% 
   
@@ -146,7 +175,8 @@ amex_clean <- amex_clean %>%
          ), 
          emission = round(distance_km * coe2_fct, 2),
          ori = str_to_sentence(ori), 
-         dest = str_to_sentence(dest)) 
+         dest = str_to_sentence(dest), 
+         flight_type = str_to_sentence(flight_type)) 
 # Export data -------------------------------------------------------------
 
 export(amex_clean, fs::path(clean_path, "amex_clean.rds"))

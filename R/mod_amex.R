@@ -13,7 +13,7 @@ mod_amex_ui <- function(id) {
         
         shinyWidgets::sliderTextInput(
           inputId = ns("date_range"),
-          label = "Year & Months",
+          label = "Time period",
           choices = init_date_range, 
           selected = c(min_date, max_date), 
           grid = FALSE,
@@ -26,14 +26,6 @@ mod_amex_ui <- function(id) {
           label = "Organisation",
           choices = unique(df_amex$org),
           multiple = TRUE, 
-          options = list(placeholder = "All", plugins = "remove_button")
-        ), 
-        
-        shiny::selectizeInput(
-          inputId = ns("reasons"),
-          label = "Reasons for Travel",
-          choices = unique(df_amex$reason_travel) %>% na.omit(),
-          multiple = TRUE,
           options = list(placeholder = "All", plugins = "remove_button")
         )
       ),
@@ -226,8 +218,8 @@ mod_amex_ui <- function(id) {
                                    shiny::selectizeInput(
                                      ns("dist_var"),
                                      label = "Display",
-                                     choices = dist_var,
-                                     selected = dist_var[[1]],
+                                     choices = display_var[display_var !="n_flights"],
+                                     selected = display_var[display_var !="n_flights"][[1]],
                                      multiple = FALSE,
                                      width = "100%"
                                    )
@@ -272,22 +264,18 @@ mod_amex_server <- function(id,
     
     #Update Reasons and Date Input depending on select_org 
     observeEvent(input$select_org, 
+                 ignoreNULL = FALSE,{
+                   
+                   min_date <- min(amex_org()$invoice_date)
+                   max_date <- max(amex_org()$invoice_date)
+                   
+                   date_seq <- format(seq.Date(min_date, max_date, by = "month"), "%Y-%m")
                  
-                 {
-                   reason_choices <- unique(amex_org()$reason_travel) %>% na.omit()
-                   
-                   shiny::updateSelectizeInput("reasons",
-                                               choices = reason_choices, 
-                                               session = session
-                   )
-                   
-                   date_seq <- format(seq.Date(min(amex_org()$invoice_date), max(amex_org()$invoice_date), by = "month"), "%Y-%m")
-                   
-                   shinyWidgets::updateSliderTextInput(session = session, 
-                                                       inputId = "date_range",
-                                                       choices = date_seq, 
-                   )
-                   
+                 shinyWidgets::updateSliderTextInput(session = session, 
+                                                     inputId = "date_range",
+                                                     choices = date_seq
+                 )
+                 
                  }
     )
     
@@ -298,8 +286,6 @@ mod_amex_server <- function(id,
       
       df <- amex_org() %>%
         filter(invoice_date >= date[1], invoice_date <= date[2])
-      
-      if (length(input$reasons)) df <-  df %>% filter(reason_travel %in% input$reasons)
       
       return(df)
       
@@ -378,41 +364,20 @@ mod_amex_server <- function(id,
       
       # Prepare data 
       hc_df <- reactive( { 
+        
         y_var <- sym(input$display)
         
-        if(input$date_interval == "month"){
-          fmt_date <- "%Y-%m"
+        df <- amex_ready() %>% 
           
-        } else {
+          rename("date_group" = input$date_interval) %>% 
           
-          fmt_date <- "%Y"
+          mutate(date_group = fct_relevel(as.character(date_group)) ) %>% 
           
-        }
-        
-        if(input$date_interval == "quarter"){
-          
-          df <- amex_ready() %>% 
-            mutate(
-              date_group = lubridate::quarter(invoice_date, with_year = TRUE), 
-              date_group = str_replace(date_group, "\\.", "-Q")
-            ) 
-        } else {
-          
-          df <- amex_ready() %>% 
-            mutate(
-              date_group = floor_date(invoice_date, input$date_interval), 
-              date_group = format.Date(date_group, format = fmt_date), 
-              date_group = fct_relevel(date_group)
-            ) 
-          
-        }
-        
-        df <- df %>% 
           summarise(
             .by = c(!!group_sym, date_group), 
             n_flights = n(), 
-            dist_km = round( sum(distance_km), digits = 1), 
-            dist_miles = round(sum(distance_miles), digits = 1), 
+            distance_km = round( sum(distance_km), digits = 1), 
+            distance_miles = round(sum(distance_miles), digits = 1), 
             gross_amount = round(sum(gross_amount), digits = 1),
             emission = round(sum(emission), digits = 1)
           ) %>% 
@@ -421,7 +386,8 @@ mod_amex_server <- function(id,
           
           mutate(lab = fmt_n(!!y_var), 
                  
-                 cumm_sum = cumsum(!!y_var))
+                 cumm_sum = cumsum(!!y_var)
+          )
         
         return(df)
         
@@ -493,10 +459,6 @@ mod_amex_server <- function(id,
       
       req(amex_summary())
       
-      dict_lab <- data.frame(from = unname(dist_var), 
-                             to = names(dist_var))
-      
-      
       dist_var_sym <- sym(input$dist_var)
       
       if(input$dist_year != "All years"){
@@ -516,7 +478,7 @@ mod_amex_server <- function(id,
       
       hchart(hc_var, 
              
-             name = matchmaker::match_vec(input$dist_var, dict_lab, from = 1, to = 2) ) %>% 
+             name = matchmaker::match_vec(input$dist_var, display_lab, from = 1, to = 2) ) %>% 
         
         hc_xAxis(
           plotLines = list(
@@ -587,11 +549,12 @@ mod_amex_server <- function(id,
         
         summarise(.by = c(!!bar_group_sym), 
                   n_flights = n(), 
-                  dist_km = sum(distance_km), 
-                  dist_miles = sum(distance_miles), 
+                  distance_km = sum(distance_km), 
+                  distance_miles = sum(distance_miles), 
                   gross_amount = sum(gross_amount),
                   emission = round(digits = 1, sum(emission))
         ) %>% 
+        
         mutate(label = fmt_n(!!bar_var_sym), 
                percent = scales::percent(!!bar_var_sym/sum(!!bar_var_sym), accuracy = .1 )) %>% 
         

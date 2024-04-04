@@ -15,6 +15,7 @@ ui <- tagList(
     collapsible = TRUE,
     inverse = FALSE,
     theme = bs_theme(
+      primary = "#4682B4",
       base_font = font_google(
         app_font, 
         wght = c(300, 400, 500, 600, 700, 800),

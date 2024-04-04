@@ -14,11 +14,8 @@ source(here::here("R", "utils_hc.R"))
 
 paths <- set_paths()
 
-sharepoint_path <- paths$sharepoint_path
-
-
 # Path to clean data 
-clean_path <- fs::path(sharepoint_path, "maelle_charrier_tool", "data", "clean")
+path_to_data <- fs::path(paths$maelle_charrier_tool, "Data")
 
 # Setup -------------------------------------------------------------------
 app_name <- "carbon_app"
@@ -27,14 +24,14 @@ app_font <- "Alegreya Sans"
 p_font <- "Merriweather"
 
 # Import data -------------------------------------------------------------
-# Get the distance matrix
+# Get the distance matrix from the project not sharepoint ! too big
 mat <- read_rds(here::here("data", "distance-matrix", "airports_distance_matrix.rds"))
 
 # get the air_msf data
-air_msf <- read_rds(here::here("data", "clean", "air_msf.rds"))
+air_msf <- read_rds(here::here(path_to_data, "clean", "air_msf.rds"))
 
 # get the conversion df - given by Maelle
-df_conversion <- read_rds(here::here("data", "clean", "conversion_df.rds"))
+df_conversion <- read_rds(here::here(path_to_data, "clean", "conversion_df.rds"))
 
 cities <- air_msf %>%
   arrange(city_id) %>%
@@ -46,16 +43,7 @@ cities <- air_msf %>%
   )
 
 # Get AMEX data 
-df_amex <- read_rds(here::here("data", "amex", "amex_clean.rds"))
-
-#add data 
-
-df_amex <- df_amex %>% 
-  mutate(year = year(invoice_date), 
-         quarter = str_replace(lubridate::quarter(invoice_date, 
-                                                  with_year = TRUE), "\\.", "-Q"), 
-         month = format(invoice_date, "%Y-%m")
-  )
+df_amex <- read_rds(here::here(path_to_data, "clean", "amex_clean.rds"))
 
 #date range 
 init_year <- unique(df_amex$year)
