@@ -126,7 +126,6 @@ amex_clean <- amex %>%
   ) %>% 
   
   #fix NAs 
-  
   mutate(across(c(reason_travel, flight_type), ~ if_else(is.na(.x), "Missing",.x))) %>% 
   
   relocate(c(month, quarter, year), .after = invoice_date) %>% 
@@ -180,3 +179,21 @@ amex_clean <- amex_clean %>%
 # Export data -------------------------------------------------------------
 
 export(amex_clean, fs::path(clean_path, "amex_clean.rds"))
+
+
+
+# City name matching  -----------------------------------------------------
+
+cities <- maps::world.cities |> as_tibble()
+
+
+
+  filter(pop > 100000) %>%
+  # dplyr::mutate(iso2 = countrycode::countrycode(country.etc, "country.name", "iso2c")) %>%
+  # tidyr::unite(label, name, iso2, sep = ", ", na.rm = TRUE, remove = FALSE) %>%
+  dplyr::arrange(country.etc, name) %>%
+  shinyWidgets::prepare_choices(
+    label = name,
+    value = name,
+    group_by = country.etc
+  )

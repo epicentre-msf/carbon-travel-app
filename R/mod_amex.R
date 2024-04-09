@@ -132,7 +132,15 @@ mod_amex_ui <- function(id) {
                                  choices = c(purrr::set_names("no grouping", NULL), group_vars),
                                  multiple = FALSE,
                                  width = "95%"
-                               )
+                               ), 
+                               
+                               shiny::checkboxInput(
+                                 ns("cumulative"),
+                                 "Show cumulative data ?",
+                                 value = FALSE,
+                                 width = "100%"
+                               ),
+                               
                              )), 
                            highchartOutput(ns("time_serie"))
                          ), 
@@ -270,12 +278,12 @@ mod_amex_server <- function(id,
                    max_date <- max(amex_org()$invoice_date)
                    
                    date_seq <- format(seq.Date(min_date, max_date, by = "month"), "%Y-%m")
-                 
-                 shinyWidgets::updateSliderTextInput(session = session, 
-                                                     inputId = "date_range",
-                                                     choices = date_seq
-                 )
-                 
+                   
+                   shinyWidgets::updateSliderTextInput(session = session, 
+                                                       inputId = "date_range",
+                                                       choices = date_seq
+                   )
+                   
                  }
     )
     
@@ -306,8 +314,8 @@ mod_amex_server <- function(id,
           n_segment = nrow(main_segment), 
           main_seg =  main_segment %>% filter(row_number() == 1) %>% pull(segment),
           main_seg_n = main_segment %>% filter(row_number() == 1) %>% pull(n),
-          tot_distance_miles = frmt_num(sum(distance_km)),
-          tot_distance_km = frmt_num(sum(distance_miles)),
+          tot_distance_miles = frmt_num(sum(distance_miles)),
+          tot_distance_km = frmt_num(sum(distance_km)),
           tot_emissions = frmt_num(sum(emission)), 
           emission_km = frmt_num(round(digits = 2, sum(emission)/sum(distance_km)))
         )
@@ -335,8 +343,7 @@ mod_amex_server <- function(id,
     
     output$dist_info <- renderUI({
       req(amex_summary())
-      tags$small(glue::glue(
-        "{amex_summary()$tot_distance_miles} miles"
+      tags$small(glue::glue("{amex_summary()$tot_distance_miles} miles"
       ))
     })
     
@@ -362,6 +369,7 @@ mod_amex_server <- function(id,
       if(input$group != "no grouping"){
         group_sym <- sym(input$group)} else { group_sym <- NULL}
       
+      
       # Prepare data 
       hc_df <- reactive( { 
         
@@ -386,32 +394,32 @@ mod_amex_server <- function(id,
           
           mutate(lab = fmt_n(!!y_var), 
                  
-                 cumm_sum = cumsum(!!y_var)
+                 n_c = cumsum(!!y_var)
           )
         
         return(df)
         
       })
+    
+      n_var <- dplyr::if_else(input$cumulative, "n_c", input$display)
       
       if(input$group == "no grouping") {
-        y_var <- sym(input$display)
         
         base_hc <- hchart(hc_df(),
                           "column", 
                           hcaes(x = date_group, 
-                                y = !!y_var)
+                                y = !!sym(n_var))
                           
         )
       } else { 
-        
-        y_var <- sym(input$display)
         
         # Not in right x order if group is org 
         base_hc <- hchart(hc_df(),
                           "column", 
                           hcaes(x = date_group, 
-                                y = !!y_var, 
-                                group = !!group_sym)
+                                y = !!sym(n_var), 
+                                group = !!group_sym
+                          )
         )
         
       }
@@ -492,6 +500,8 @@ mod_amex_server <- function(id,
         ) 
       
     })
+    
+    
     
     # Boxplot
     output$dist_boxplot <- renderHighchart({
