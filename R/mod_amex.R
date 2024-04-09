@@ -27,6 +27,11 @@ mod_amex_ui <- function(id) {
           choices = unique(df_amex$org),
           multiple = TRUE, 
           options = list(placeholder = "All", plugins = "remove_button")
+        ), 
+        
+        shiny::downloadButton(
+          outputId = ns("download"),
+          label = "Download data"
         )
       ),
       
@@ -295,6 +300,9 @@ mod_amex_server <- function(id,
       df <- amex_org() %>%
         filter(invoice_date >= date[1], invoice_date <= date[2])
       
+      #remove sensitive data
+      
+      
       return(df)
       
     })
@@ -400,7 +408,7 @@ mod_amex_server <- function(id,
         return(df)
         
       })
-    
+      
       n_var <- dplyr::if_else(input$cumulative, "n_c", input$display)
       
       if(input$group == "no grouping") {
@@ -631,4 +639,28 @@ mod_amex_server <- function(id,
     
     # Map ==================================================
     
-  })}
+    
+    
+    
+    # # Download  ==================================================
+    
+    output$download <- downloadHandler(
+      
+      filename = function() {
+        
+        dates <- paste( input$date_range[1], input$date_range[2], sep = "-")
+        org <- if(length(input$select_org) ) {"_filtered-org"} else { "_All-org" }
+        
+        paste0("amex_data_",dates, org, ".csv")
+      },
+      
+      content = function(file) {
+        
+        write.csv(amex_ready(), file)
+      }
+    ) 
+    
+    
+  }
+  )
+}
