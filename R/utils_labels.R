@@ -19,6 +19,7 @@ display_var <- c( "Emissions (tCO2e)" = "emission",
                   "Distance (Km)" = "distance_km", 
                   "Distance (Miles)" = "distance_miles")
 
+
 display_lab <- data.frame(from = unname(display_var), 
                           to = names(display_var))
 

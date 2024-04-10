@@ -1,3 +1,50 @@
+
+
+origin_input_modal <- function(ns) {
+  modalDialog(
+    title = "Select places of origin and number of attendees",
+    easyClose = FALSE,
+    footer = actionButton(ns("go"), "Get meeting places", class = "btn-primary"),
+    tagList(
+      shinyjs::useShinyjs(),
+      div(
+        id = ns("inputs"),
+        city_input(
+          ns,
+          index = 1,
+          city_lab = tooltip(
+            span("City of origin", bsicons::bs_icon("info-circle")),
+            "Where are people travelling from?",
+            placement = "top"
+          ),
+          num_lab = tooltip(
+            span("People", bsicons::bs_icon("info-circle")),
+            "How many people are travelling from this location?",
+            placement = "top"
+          )
+        ),
+        city_input(ns, index = 2),
+      ),
+      div(
+        class = "d-flex mb-3 justify-content-end",
+        div(
+          class = "pe-2",
+          actionButton(
+            ns("remove"),
+            label = "-",
+            class = "btn-danger btn-sm"
+          ) %>% tooltip("Remove a location", placement = "top")
+        ),
+        actionButton(
+          ns("add"),
+          label = "+",
+          class = "btn-success btn-sm"
+        ) %>% tooltip("Add another location", placement = "top")
+      )
+    )
+  )
+}
+
 mod_origin_input_ui <- function(id) {
   ns <- NS(id)
   tagList(
@@ -9,11 +56,13 @@ mod_origin_input_ui <- function(id) {
         index = 1,
         city_lab = tooltip(
           span("City of origin", bsicons::bs_icon("info-circle")),
-          "Where are people travelling from?"
+          "Where are people travelling from?",
+          placement = "top"
         ),
         num_lab = tooltip(
           span("People", bsicons::bs_icon("info-circle")),
-          "How many people are travelling from this location?"
+          "How many people are travelling from this location?",
+          placement = "top"
         )
       ),
       city_input(ns, index = 2),
@@ -24,17 +73,17 @@ mod_origin_input_ui <- function(id) {
         class = "pe-2",
         actionButton(
           ns("remove"),
-          "-",
+          label = "-",
           class = "btn-danger btn-sm"
         ) %>% tooltip("Remove a location", placement = "top")
       ),
       actionButton(
         ns("add"),
-        "+",
-        class = "btn-info btn-sm"
+        label = "+",
+        class = "btn-success btn-sm"
       ) %>% tooltip("Add another location", placement = "top")
     ),
-    actionButton(ns("go"), "Get meeting places", width = "100%", class = "btn-primary")
+    actionButton(ns("go"), "Get meeting places", width = "100%", class = "btn-primary last-screen")
   )
 }
 
@@ -42,7 +91,11 @@ mod_origin_input_server <- function(id, cities) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # set this to number of inputs you starts with
+    # showModal(
+    #   origin_input_modal(ns)
+    # )
+
+    # set this to number of inputs you start with
     n_inputs <- reactiveVal(2)
 
     observe({
@@ -63,7 +116,6 @@ mod_origin_input_server <- function(id, cities) {
         selector = paste0("#", ns("inputs")),
         where = "beforeEnd",
         ui = city_input(ns, index, cities)
-        # ui = city_input(ns, input$add + 2, cities)
       )
       n_inputs(index)
     })
@@ -75,7 +127,7 @@ mod_origin_input_server <- function(id, cities) {
     })
 
     df_origin <- reactive({
-      # index <- input$add + 2
+      on.exit(removeModal())
       index <- n_inputs()
       req(input[[paste0("n", index)]])
       selected_cities <- purrr::map_chr(1:index, ~ input[[paste0("p", .x)]])

@@ -37,13 +37,16 @@ paths <- set_paths()
 
 sharepoint_path <- paths$sharepoint_path
 
-raw_path <- fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "data", "raw")
-clean_path <- fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "data", "clean")
+raw_path <- fs::path(sharepoint_path, "Maelle CHARRIER - Carbon-travel-App", "Data", "raw")
+clean_path <- fs::path(sharepoint_path, "Maelle CHARRIER - Carbon-travel-App", "Data", "clean")
 
 #Import data ------------------------
 
 #country_codes 
-country_codes  <- import(fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "Data", "country_codes.xlsx")) %>% clean_names() %>% rename(mission_name = name) %>% as_tibble()
+country_codes <- import(fs::path(sharepoint_path, "Maelle CHARRIER - Carbon-travel-App", "Data", "country_codes.xlsx")) %>%
+  clean_names() %>%
+  rename(mission_name = name) %>%
+  as_tibble()
 
 dir_ls <- fs::dir_ls(fs::path(raw_path, "amex-data"), regexp = "ALLMSF")
 myfiles <- lapply(dir_ls, rio::import, skip = 5, guess_max = 10000000) 
@@ -179,4 +182,4 @@ amex_clean <- amex_clean %>%
          flight_type = str_to_sentence(flight_type)) 
 # Export data -------------------------------------------------------------
 
-export(amex_clean, fs::path(clean_path, "amex_clean.rds"))
+export(amex_clean, here::here("data", "clean", "amex_clean.rds"))

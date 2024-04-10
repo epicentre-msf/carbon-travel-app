@@ -1,31 +1,30 @@
 ui <- tagList(
   tags$head(
-    tags$style(".value-box-area {padding: 5px !important;}"),
-    # tags$link(href = google_font(p_font), rel = "stylesheet"),
-    tags$style(
-      HTML(glue::glue("p {{font-family: '{app_font}';}}"))
-    ),
+    tags$style("
+    .vb .card-body {padding: 5px !important;} 
+    .value-box-area {padding: 0 !important;}
+    .selectize-dropdown, .selectize-input, .form-control {font-size: 0.8rem !important;}
+    "),
     shinyjs::useShinyjs(),
     waiter::use_waiter(),
     sever::useSever()
   ),
   
   page_navbar(
+    id = "tabs",
     title = "MSF Carbon Travel App",
     collapsible = TRUE,
     inverse = FALSE,
     theme = bs_theme(
+      preset = "minty",
       primary = "#4682B4",
-      base_font = font_google(
-        app_font, 
-        wght = c(300, 400, 500, 600, 700, 800),
-        ital = c(0, 1)
-      ),
-      font_scale = 0.8,
-      bootswatch = "minty", 
-      "navbar-bg" = "#f8f9fa"
+      font_scale = 0.8
     ),
     
+    # amex flight analysis
+    mod_amex_ui("flights"), 
+
+    # meeting place planner
     nav_panel(
       "Meeting Place Planner",
       layout_sidebar(
@@ -35,13 +34,10 @@ ui <- tagList(
           gap = 0,
           mod_origin_input_ui("origin")
         ),
-        
         mod_meeting_place_ui("mp")
       )
     ),
-    
-    mod_amex_ui("flights"), 
-    
+
     # nav images and links 
     nav_spacer(),
     nav_item(
@@ -80,6 +76,16 @@ ui <- tagList(
     )
     
   ), 
-  waiter::waiter_preloader(html = waiter::spin_3())
-  
+  waiter::waiter_preloader(
+    html = tagList(
+      tags$img(
+        src = "epicentre_logo.png",
+        width = 500,
+        style = "padding: 20px;"
+      ),
+      h1("Data Science"),
+      waiter::spin_3()
+    ),
+    color = "#f8f9fa"
+  )
 )
