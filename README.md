@@ -9,10 +9,10 @@ The app is organised in two parts
 1. **The travel planner**
    helps MSF/EPICENTRE decision makers to identify suitable meeting/events locations in order to minimise the *plane travel* CO2 emissions. This currently supports only locations where MSF is present (Office or Project)
 
-  **Note:** this algorithms uses straight line travel between cities and does not take into account possible stop overs
+  **Note:** this algorithms uses straight line travel between cities and does not (yet) take into account possible stop overs
 
 2. **The Amex Analysis**
-   This tab provides a *preliminary* analysis into the AMEX data. This dataset summarises all the air travels booked through the AMEX travel agency
+ Provides an analysis into the AMEX flight data. This dataset summarises all the air travels booked through the AMEX travel agency
    
 # Data sources
 
