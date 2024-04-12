@@ -371,13 +371,23 @@ mod_amex_server <- function(id,
 
     df_origin <- reactive({
       amex_ready() %>%
-        count(ori_city, ori_lon, ori_lat) %>%
+        summarise(
+          .by = ori_city,
+          ori_lon = mean(ori_lon, na.rm = TRUE),
+          ori_lat = mean(ori_lat, na.rm = TRUE),
+          n = n()
+        ) %>% 
         tidyr::drop_na()
     })
 
     df_destination <- reactive({
       amex_ready() %>%
-        count(dest_city, dest_lon, dest_lat) %>%
+        summarise(
+          .by = dest_city,
+          dest_lon = mean(dest_lon, na.rm = TRUE),
+          dest_lat = mean(dest_lat, na.rm = TRUE),
+          n = n()
+        ) %>% 
         tidyr::drop_na()
     })
 
@@ -405,7 +415,7 @@ mod_amex_server <- function(id,
           fillOpacity = 0.8,
           weight = 1,
           color = "#FFFFFF",
-          label = ~ paste(n, "flights"),
+          label = ~ paste(ori_city, n, "flights"),
           group = "Origin",
           options = leaflet::pathOptions(pane = "circles")
         ) %>%
@@ -418,7 +428,7 @@ mod_amex_server <- function(id,
           fillOpacity = 0.8,
           weight = 1,
           color = "#FFFFFF",
-          label = ~ paste(n, "flights"),
+          label = ~ paste(dest_city, n, "flights"),
           group = "Destination",
           options = leaflet::pathOptions(pane = "circles")
         )

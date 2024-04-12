@@ -49,7 +49,8 @@ cities <- air_msf %>%
   )
 
 # Get AMEX data
-df_amex <- read_rds(here::here(path_to_data, "clean", "amex_clean_lon_lat.rds"))
+df_amex <- read_rds(here::here(path_to_data, "clean", "amex_clean_lon_lat.rds")) %>%
+  mutate(emission = emission / 1000)
 
 #date range 
 init_year <- unique(df_amex$year)

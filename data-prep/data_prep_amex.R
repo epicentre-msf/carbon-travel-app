@@ -172,7 +172,7 @@ amex_clean <- amex_clean %>%
                               distance_km_cat == "medium" ~ 0.18746, 
                               distance_km_cat == "long" ~ 0.15196
          ), 
-         emission = round(distance_km * coe2_fct, 2),
+         emission = round((distance_km * coe2_fct) / 1000, 2)
          ori = str_to_sentence(ori), 
          dest = str_to_sentence(dest), 
          flight_type = str_to_sentence(flight_type)) 
