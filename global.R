@@ -5,6 +5,7 @@ library(tidyverse)
 library(gt)
 library(highcharter)
 library(reactable)
+library(leaflet)
 source(here::here("R", "set_paths.R"))
 source(here::here("R", "utils_labels.R"))
 source(here::here("R", "utils.R"))
@@ -15,7 +16,12 @@ source(here::here("R", "utils_hc.R"))
 paths <- set_paths()
 
 # Path to clean data 
-path_to_data <- fs::path(paths$maelle_charrier_tool, "Data")
+if (Sys.info()[["user"]] == "paul") {
+  path_to_data <- fs::path(Sys.getenv("SHAREPOINT_PATH"), "Maelle CHARRIER - Carbon-travel-App", "Data")
+} else {
+  path_to_data <- fs::path(paths$maelle_charrier_tool, "Data")
+}
+
 
 # Setup -------------------------------------------------------------------
 app_name <- "carbon_app"
@@ -42,8 +48,8 @@ cities <- air_msf %>%
     group_by = country
   )
 
-# Get AMEX data 
-df_amex <- read_rds(here::here(path_to_data, "clean", "amex_clean.rds"))
+# Get AMEX data
+df_amex <- read_rds(here::here(path_to_data, "clean", "amex_clean_lon_lat.rds"))
 
 #date range 
 init_year <- unique(df_amex$year)

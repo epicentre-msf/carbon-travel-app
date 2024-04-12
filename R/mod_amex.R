@@ -29,10 +29,10 @@ mod_amex_ui <- function(id) {
           options = list(placeholder = "All", plugins = "remove_button")
         ), 
         
-        shiny::downloadButton(
+        div(class = "pt-3", shiny::downloadButton(
           outputId = ns("download"),
           label = "Download data"
-        )
+        ))
       ),
       
       # VALUE BOXES ========================
@@ -82,13 +82,13 @@ mod_amex_ui <- function(id) {
                              class = "d-flex justify-content-between align-items-center",
                              tags$span(
                                class = "pe-2",
-                               tagList(shiny::icon("clock"), "Map")
+                               tagList(shiny::icon("earth-africa"), "Map")
                              )
                            ),
                            nav_panel(
                              title = shiny::icon("map"),
                              value = "map",
-                             highcharter::highchartOutput(ns("map"))
+                             leaflet::leafletOutput(ns("map"))
                            ),
                            nav_panel(
                              title = shiny::icon("table"),
@@ -366,6 +366,95 @@ mod_amex_server <- function(id,
       
       paste(amex_summary()$emission_km, "tCO2e per Km")
     })
+
+    # Map ===================================================
+
+    df_origin <- reactive({
+      amex_ready() %>%
+        count(ori_city, ori_lon, ori_lat) %>%
+        tidyr::drop_na()
+    })
+
+    df_destination <- reactive({
+      amex_ready() %>%
+        count(dest_city, dest_lon, dest_lat) %>%
+        tidyr::drop_na()
+    })
+
+    output$map <- leaflet::renderLeaflet({
+      leaflet::leaflet() %>%
+        leaflet::setView(0, 10, zoom = 2) %>%
+        leaflet::addMapPane(name = "circles", zIndex = 410) %>%
+        leaflet::addMapPane(name = "place_labels", zIndex = 450) %>%
+        leaflet::addProviderTiles("CartoDB.Positron", group = "Light") %>%
+        # leaflet::addProviderTiles("OpenStreetMap", group = "OSM") %>%
+        leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) %>%
+        leaflet.extras::addFullscreenControl(position = "topleft") %>%
+        leaflet.extras::addResetMapButton() %>%
+        leaflet::addLayersControl(
+          baseGroups = c("Origin", "Destination"),
+          position = "topright",
+          options = layersControlOptions(collapsed = FALSE)
+        ) %>% 
+        leaflet::addCircleMarkers(
+          data = df_origin(),
+          lng = ~ori_lon,
+          lat = ~ori_lat,
+          radius = ~ calc_radius(n),
+          fillColor = "steelblue",
+          fillOpacity = 0.8,
+          weight = 1,
+          color = "#FFFFFF",
+          label = ~ paste(n, "flights"),
+          group = "Origin",
+          options = leaflet::pathOptions(pane = "circles")
+        ) %>%
+        leaflet::addCircleMarkers(
+          data = df_destination(),
+          lng = ~dest_lon,
+          lat = ~dest_lat,
+          radius = ~ calc_radius(n),
+          fillColor = "red",
+          fillOpacity = 0.8,
+          weight = 1,
+          color = "#FFFFFF",
+          label = ~ paste(n, "flights"),
+          group = "Destination",
+          options = leaflet::pathOptions(pane = "circles")
+        )
+    })
+
+    # observe({
+    #   leaflet::leafletProxy("map", session, data = df_origin()) %>%
+    #     leaflet::addCircleMarkers(
+    #       lng = ~ori_lon,
+    #       lat = ~ori_lat,
+    #       radius = ~ calc_radius(n),
+    #       fillColor = "steelblue",
+    #       fillOpacity = 0.8,
+    #       weight = 1,
+    #       color = "#FFFFFF",
+    #       label = ~ paste(n, "flights"),
+    #       group = "Origin",
+    #       options = leaflet::pathOptions(pane = "circles")
+    #     )
+    # })
+
+    # observe({
+    #   leaflet::leafletProxy("map", session, data = df_destination()) %>%
+    #     leaflet::addCircleMarkers(
+    #       lng = ~dest_lon,
+    #       lat = ~dest_lat,
+    #       radius = ~ calc_radius(n),
+    #       fillColor = "red",
+    #       fillOpacity = 0.8,
+    #       weight = 1,
+    #       color = "#FFFFFF",
+    #       label = ~ paste(n, "flights"),
+    #       group = "Destination",
+    #       options = leaflet::pathOptions(pane = "circles")
+    #     )
+    # })
     
     # Time-Series ===========================================
     
@@ -534,7 +623,7 @@ mod_amex_server <- function(id,
       box_df <- data_to_boxplot(amex_box, 
                                 !!dist_var_sym, 
                                 group_var = !!date_interval_sym,
-                                name = matchmaker::match_vec(input$dist_var, dict_lab, from = 1, to = 2), 
+                                name = matchmaker::match_vec(input$dist_var, display_lab, from = 1, to = 2), 
                                 #showInLegend = FALSE
       )
       
@@ -545,7 +634,7 @@ mod_amex_server <- function(id,
           crosshair = TRUE
         ) %>%
         hc_yAxis(
-          title = list(text = matchmaker::match_vec(input$dist_var, dict_lab, from = 1, to = 2))
+          title = list(text = matchmaker::match_vec(input$dist_var, display_lab, from = 1, to = 2))
         ) %>%
         
         hc_add_series_list(box_df) %>%

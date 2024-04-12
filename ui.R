@@ -25,6 +25,8 @@ ui <- tagList(
       bootswatch = "minty", 
       "navbar-bg" = "#f8f9fa"
     ),
+
+    mod_amex_ui("flights"), 
     
     nav_panel(
       "Meeting Place Planner",
@@ -39,8 +41,6 @@ ui <- tagList(
         mod_meeting_place_ui("mp")
       )
     ),
-    
-    mod_amex_ui("flights"), 
     
     # nav images and links 
     nav_spacer(),
@@ -80,6 +80,15 @@ ui <- tagList(
     )
     
   ), 
-  waiter::waiter_preloader(html = waiter::spin_3())
-  
+  waiter::waiter_preloader(
+    html = tagList(
+      tags$img(
+        src = "epicentre_logo.png",
+        width = 500,
+        style = "padding: 20px;"
+      ),
+      waiter::spin_3()
+    ),
+    color = "#ffffff"
+  )
 )

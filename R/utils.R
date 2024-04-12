@@ -43,3 +43,7 @@ force_reactive <- function(x) {
     x
   }
 }
+
+calc_radius <- function(n, scale_factor = 30) {
+  sqrt(n) / sqrt(max(n)) * scale_factor
+}
