@@ -1,0 +1,1 @@
+rsync -zavh ~/epicentre/meeting_place_planner/data episerv:/home/epicentre/carbon-travel-app/
