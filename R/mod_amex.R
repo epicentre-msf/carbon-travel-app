@@ -496,7 +496,7 @@ mod_amex_server <- function(id,
           title = list(text = str_to_sentence(input$date_interval)),
           categories = levels(hc_df()$date_group)
         ) %>%
-        hc_yAxis(title = list(text = matchmaker::match_vec(input$display, display_lab, from = 1, to = 2))) %>%
+        hc_yAxis(title = list(text = names(display_var[display_var == input$display]))) %>%
         hc_tooltip(
           useHTML = TRUE,
           formatter = JS("
@@ -538,7 +538,7 @@ mod_amex_server <- function(id,
       }
 
       hchart(hc_var,
-        name = matchmaker::match_vec(input$dist_var, display_lab, from = 1, to = 2)
+        name = names(display_var[display_var == input$dist_var])
       ) %>%
         hc_xAxis(
           plotLines = list(
@@ -572,7 +572,7 @@ mod_amex_server <- function(id,
       box_df <- data_to_boxplot(amex_box,
         !!dist_var_sym,
         group_var = !!date_interval_sym,
-        name = matchmaker::match_vec(input$dist_var, display_lab, from = 1, to = 2),
+        name = names(display_var[display_var == input$dist_var])
         # showInLegend = FALSE
       )
 
@@ -583,7 +583,7 @@ mod_amex_server <- function(id,
           crosshair = TRUE
         ) %>%
         hc_yAxis(
-          title = list(text = matchmaker::match_vec(input$dist_var, display_lab, from = 1, to = 2))
+          title = list(text = names(display_var[display_var == input$dist_var]))
         ) %>%
         hc_add_series_list(box_df) %>%
         hc_tooltip(shared = TRUE)
@@ -621,16 +621,15 @@ mod_amex_server <- function(id,
           y = !!bar_var_sym
         )
       ) %>%
-        hc_yAxis(title = list(text = matchmaker::match_vec(input$bar_var, display_lab, from = 1, to = 2))) %>%
-        hc_xAxis(title = list(text = matchmaker::match_vec(input$bar_group, dict_bar_group, from = 1, to = 2))) %>%
+        hc_yAxis(title = list(text = names(display_var[display_var == input$bar_var]))) %>%
+        hc_xAxis(title = list(text = names(bar_group[bar_group == input$bar_group]))) %>%
         hc_tooltip(
           useHTML = TRUE,
           formatter = JS("
-    function(){
-    outHTML =  '<i>' + this.point.group_var + '</i> <br> <b>' + this.point.label + ' (' + this.point.percent + ')</b>'
-     return(outHTML)
-
-     }")
+          function(){
+          outHTML =  '<i>' + this.point.group_var + '</i> <br> <b>' + this.point.label + ' (' + this.point.percent + ')</b>'
+          return(outHTML)
+          }")
         ) %>%
         hc_chart(inverted = TRUE)
     })
