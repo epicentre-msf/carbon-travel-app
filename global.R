@@ -1,6 +1,7 @@
 # Global for Carbon-travel-App 
 library(shiny)
 library(bslib)
+library(shinylogs)
 library(tidyverse)
 library(gt)
 library(highcharter)
@@ -8,10 +9,10 @@ library(reactable)
 library(leaflet)
 
 # Setup -------------------------------------------------------------------
-app_name <- "carbon-app"
-app_title <- "Carbon Travel App"
-# app_font <- "Alegreya Sans"
-# p_font <- "Merriweather"
+app_name <- "msf-carbon-app"
+app_title <- "MSF Carbon Travel App"
+sp_path <- Sys.getenv("SHINYPROXY_PUBLIC_PATH")
+is_sp_env <- sp_path != ""
 
 # Import data -------------------------------------------------------------
 # Get the distance matrix from the project not sharepoint ! too big
@@ -54,11 +55,11 @@ max_date <- max(init_date_range)
 #   )
 
 # local disk cache
-shiny::shinyOptions(cache = cachem::cache_disk(here::here(".cache")))
+# shiny::shinyOptions(cache = cachem::cache_disk(here::here(".cache")))
 
-disconnected <- sever::sever_default(
-  title = "Disconnected",
-  subtitle = "Sorry your session timed-out or something went wrong",
-  button = "Reconnect",
-  button_class = "info"
-)
+# disconnected <- sever::sever_default(
+#   title = "Disconnected",
+#   subtitle = "Sorry your session timed-out or something went wrong",
+#   button = "Reconnect",
+#   button_class = "info"
+# )

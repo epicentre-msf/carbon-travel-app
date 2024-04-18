@@ -5,12 +5,12 @@ ui <- tagList(
     .value-box-area {padding: 0 !important;}
     "),
     shinyjs::useShinyjs(),
-    waiter::use_waiter(),
-    sever::useSever()
+    waiter::use_waiter()
+    # sever::useSever()
   ),
   
   page_navbar(
-    title = "MSF Carbon Travel App",
+    title = app_title,
     collapsible = TRUE,
     inverse = FALSE,
     theme = bs_theme(
