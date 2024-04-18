@@ -1,12 +1,13 @@
 library(tidyverse)
-library(opencage)
 library(sf)
-library(threejs)
-library(mapdeck)
 
-set_token(Sys.getenv("MAPBOX_API_KEY"))
+path_data <- fs::path(
+  Sys.getenv("SHAREPOINT_PATH"),
+  "Maelle CHARRIER - Carbon-travel-App",
+  "Data"
+)
 
-airport_city_path <- here::here("data", "raw", "airport-city-codes.xlsx")
+airport_city_path <- fs::path(path_data, "raw", "airport-city-codes.xlsx")
 airport_city_sheets <- readxl::excel_sheets(airport_city_path)
 
 df_airport_city <- map_df(airport_city_sheets, ~ {
@@ -32,8 +33,6 @@ df_airports <- df_airport_city %>%
     by = join_by(iata_code)
   ) %>%
   select(iata_code, airport_name, city_name, city_code, everything())
-  # filter(iata_code != city_code) %>%
-  # drop_na(country_code)
 
 df_cities <- df_airports %>%
   summarise(
@@ -41,10 +40,8 @@ df_cities <- df_airports %>%
     lon = mean(lon, na.rm = TRUE),
     lat = mean(lat, na.rm = TRUE)
   )
-  # select(starts_with("city"), starts_with("country")) %>%
-  # distinct(city_code, .keep_all = TRUE)
 
-df_amex <- read_rds(here::here("data", "clean", "amex_clean.rds"))
+df_amex <- read_rds(fs::path(path_data, "clean", "amex_clean.rds"))
   
 df_amex_codes <- tibble(code = c(df_amex$ori_code, df_amex$dest_code)) %>%
   mutate(code = str_to_upper(str_trim(code))) %>%
@@ -62,8 +59,7 @@ df_amex_codes_matched_2 <- df_amex_codes %>%
 df_amex_codes_matched <- bind_rows(df_amex_codes_matched_1, df_amex_codes_matched_2) %>%
   distinct(code, .keep_all = TRUE)
 
-df_map <- df_amex %>%
-  # select(ori_code, dest_code) %>%
+df_amex_clean_lon_lat <- df_amex %>%
   mutate(across(ends_with("_code"), ~ str_to_upper(str_trim(.x)))) %>%
   left_join(
     df_amex_codes_matched %>% select(ori_code = code, ori_city = city_code, ori_lon = lon, ori_lat = lat),
@@ -72,11 +68,14 @@ df_map <- df_amex %>%
   left_join(
     df_amex_codes_matched %>% select(dest_code = code, dest_city = city_code, dest_lon = lon, dest_lat = lat),
     by = join_by(dest_code)
-  ) # %>%
-  # select(ori_lat, ori_lon, dest_lat, dest_lon)
+  ) 
 
-clean_path <- fs::path(Sys.getenv("SHAREPOINT_PATH"), "Maelle CHARRIER - Carbon-travel-App", "Data", "clean")
-write_rds(df_map, fs::path(clean_path, "amex_clean_lon_lat.rds"))
+write_rds(df_amex_clean_lon_lat, fs::path(path_data, "clean", "amex_clean_lon_lat.rds"))
+
+# Vis Testing ---------------------------------------------------------
+library(opencage)
+library(threejs)
+library(mapdeck)
 
 top_10_cities <- count(df_map, dest_city, sort = TRUE) %>%
   head(10) %>% 
