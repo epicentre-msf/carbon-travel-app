@@ -6,38 +6,22 @@ library(gt)
 library(highcharter)
 library(reactable)
 library(leaflet)
-source(here::here("R", "set_paths.R"))
-source(here::here("R", "utils_labels.R"))
-source(here::here("R", "utils.R"))
-source(here::here("R", "utils_hc.R"))
-
-# Set paths -------------------------------------------------------------
-
-paths <- set_paths()
-
-# Path to clean data 
-if (Sys.info()[["user"]] == "paul") {
-  path_to_data <- fs::path(Sys.getenv("SHAREPOINT_PATH"), "Maelle CHARRIER - Carbon-travel-App", "Data")
-} else {
-  path_to_data <- fs::path(paths$maelle_charrier_tool, "Data")
-}
-
 
 # Setup -------------------------------------------------------------------
-app_name <- "carbon_app"
+app_name <- "carbon-app"
 app_title <- "Carbon Travel App"
-app_font <- "Alegreya Sans"
-p_font <- "Merriweather"
+# app_font <- "Alegreya Sans"
+# p_font <- "Merriweather"
 
 # Import data -------------------------------------------------------------
 # Get the distance matrix from the project not sharepoint ! too big
 mat <- read_rds(here::here("data", "distance-matrix", "airports_distance_matrix.rds"))
 
 # get the air_msf data
-air_msf <- read_rds(here::here(path_to_data, "clean", "air_msf.rds"))
+air_msf <- read_rds(here::here("data", "clean", "air_msf.rds"))
 
 # get the conversion df - given by Maelle
-df_conversion <- read_rds(here::here(path_to_data, "clean", "conversion_df.rds"))
+df_conversion <- read_rds(here::here("data", "clean", "conversion_df.rds"))
 
 cities <- air_msf %>%
   arrange(city_id) %>%
@@ -49,7 +33,7 @@ cities <- air_msf %>%
   )
 
 # Get AMEX data
-df_amex <- read_rds(here::here(path_to_data, "clean", "amex_clean_lon_lat.rds")) %>%
+df_amex <- read_rds(here::here("data", "clean", "amex_clean_lon_lat.rds")) %>%
   mutate(emission = emission / 1000)
 
 #date range 

@@ -20,7 +20,7 @@ dark2 <- c(
   "#66A61E", "#E6AB02", "#A6761D", "#666666"
 )
 
-fntfmly <- '"Roboto Condensed",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";'
+fntfmly <- 'system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol";'
 
 hc_opts <- getOption("highcharter.chart")
 hc_opts$colors <- pal10

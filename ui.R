@@ -1,10 +1,9 @@
 ui <- tagList(
   tags$head(
-    tags$style(".value-box-area {padding: 5px !important;}"),
-    # tags$link(href = google_font(p_font), rel = "stylesheet"),
-    tags$style(
-      HTML(glue::glue("p {{font-family: '{app_font}';}}"))
-    ),
+    tags$style("
+    body {background-color: #f7f7f7;}
+    .value-box-area {padding: 0 !important;}
+    "),
     shinyjs::useShinyjs(),
     waiter::use_waiter(),
     sever::useSever()
@@ -15,14 +14,14 @@ ui <- tagList(
     collapsible = TRUE,
     inverse = FALSE,
     theme = bs_theme(
-      primary = "#4682B4",
-      base_font = font_google(
-        app_font, 
-        wght = c(300, 400, 500, 600, 700, 800),
-        ital = c(0, 1)
-      ),
+      # base_font = font_google(
+      #   app_font, 
+      #   wght = c(300, 400, 500, 600, 700, 800),
+      #   ital = c(0, 1)
+      # ),
       font_scale = 0.8,
       bootswatch = "minty", 
+      primary = "#4682B4",
       "navbar-bg" = "#f8f9fa"
     ),
 

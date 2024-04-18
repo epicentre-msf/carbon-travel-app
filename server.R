@@ -1,12 +1,8 @@
 # server file for Carbon-Travel-App
 
-
 server <- function(input, output, session) {
   
   df_origin <- mod_origin_input_server("origin", cities)
-  # df_origin <- reactive({
-  #   df_input()
-  # }) %>% bindEvent(input$go, ignoreInit = TRUE)
   
   mod_meeting_place_server(
     id = "mp",
@@ -17,7 +13,9 @@ server <- function(input, output, session) {
     msf_only = TRUE
   )
   
-  mod_amex_server(id = "flights", 
-                  df_amex)
+  mod_amex_server(
+    id = "flights",
+    df_amex
+  )
   
 }
