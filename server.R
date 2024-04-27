@@ -13,8 +13,7 @@ server <- function(input, output, session) {
     mat, 
     air_msf,
     df_conversion,
-    df_origin,
-    msf_only = TRUE
+    df_origin
   )
   
   mod_amex_server(id = "flights", 

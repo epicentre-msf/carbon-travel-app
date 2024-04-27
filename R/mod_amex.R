@@ -270,7 +270,8 @@ mod_amex_server <- function(id,
     #Prepare Amex data
     amex_org <- reactive({
       
-      if(length(input$select_org)){ df_amex %>% filter(org %in% input$select_org)
+      if(length(input$select_org)){ df_amex |> 
+          filter(org %in% input$select_org)
       } else { df_amex }
       
     })
@@ -297,35 +298,33 @@ mod_amex_server <- function(id,
       
       date <- paste0(input$date_range, "-01")
       
-      df <- amex_org() %>%
+      df <- amex_org() |>
         filter(invoice_date >= date[1], invoice_date <= date[2])
-      
-      #remove sensitive data
-      
       
       return(df)
       
     })
     
+    
     # Summary amex_ready() for value boxes
     amex_summary <- reactive({
       
-      main_segment <- amex_ready() %>% 
-        count(ori, dest) %>% 
-        mutate(segment = paste(ori, dest, sep = "-")) %>% 
+      main_segment <- amex_ready() |> 
+        count(ori_city_name, dest_city_name) |> 
+        mutate(segment = paste(ori_city_name, dest_city_name, sep = "-")) |> 
         arrange(desc(n))
       
-      dat_summ <- amex_ready() %>%
-        
+      dat_summ <- amex_ready() |>
+
         summarise(
           n_flight = frmt_num( n()),
           n_segment = nrow(main_segment), 
-          main_seg =  main_segment %>% filter(row_number() == 1) %>% pull(segment),
-          main_seg_n = main_segment %>% filter(row_number() == 1) %>% pull(n),
+          main_seg =  main_segment |> filter(row_number() == 1) |> pull(segment),
+          main_seg_n = main_segment |> filter(row_number() == 1) |> pull(n),
           tot_distance_miles = frmt_num(sum(distance_miles)),
           tot_distance_km = frmt_num(sum(distance_km)),
           tot_emissions = frmt_num(sum(emission)), 
-          emission_km = frmt_num(round(digits = 2, sum(emission)/sum(distance_km)))
+          emission_km = round(digits = 10, sum(emission)/sum(distance_km))
         )
       
       return(dat_summ)
@@ -366,105 +365,6 @@ mod_amex_server <- function(id,
       
       paste(amex_summary()$emission_km, "tCO2e per Km")
     })
-
-    # Map ===================================================
-
-    df_origin <- reactive({
-      amex_ready() %>%
-        summarise(
-          .by = ori_city,
-          ori_lon = mean(ori_lon, na.rm = TRUE),
-          ori_lat = mean(ori_lat, na.rm = TRUE),
-          n = n()
-        ) %>% 
-        tidyr::drop_na()
-    })
-
-    df_destination <- reactive({
-      amex_ready() %>%
-        summarise(
-          .by = dest_city,
-          dest_lon = mean(dest_lon, na.rm = TRUE),
-          dest_lat = mean(dest_lat, na.rm = TRUE),
-          n = n()
-        ) %>% 
-        tidyr::drop_na()
-    })
-
-    output$map <- leaflet::renderLeaflet({
-      leaflet::leaflet() %>%
-        leaflet::setView(0, 10, zoom = 2) %>%
-        leaflet::addMapPane(name = "circles", zIndex = 410) %>%
-        leaflet::addMapPane(name = "place_labels", zIndex = 450) %>%
-        leaflet::addProviderTiles("CartoDB.Positron", group = "Light") %>%
-        # leaflet::addProviderTiles("OpenStreetMap", group = "OSM") %>%
-        leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) %>%
-        leaflet.extras::addFullscreenControl(position = "topleft") %>%
-        leaflet.extras::addResetMapButton() %>%
-        leaflet::addLayersControl(
-          baseGroups = c("Origin", "Destination"),
-          position = "topright",
-          options = layersControlOptions(collapsed = FALSE)
-        ) %>% 
-        leaflet::addCircleMarkers(
-          data = df_origin(),
-          lng = ~ori_lon,
-          lat = ~ori_lat,
-          radius = ~ calc_radius(n),
-          fillColor = "steelblue",
-          fillOpacity = 0.8,
-          weight = 1,
-          color = "#FFFFFF",
-          label = ~ paste(ori_city, n, "flights"),
-          group = "Origin",
-          options = leaflet::pathOptions(pane = "circles")
-        ) %>%
-        leaflet::addCircleMarkers(
-          data = df_destination(),
-          lng = ~dest_lon,
-          lat = ~dest_lat,
-          radius = ~ calc_radius(n),
-          fillColor = "red",
-          fillOpacity = 0.8,
-          weight = 1,
-          color = "#FFFFFF",
-          label = ~ paste(dest_city, n, "flights"),
-          group = "Destination",
-          options = leaflet::pathOptions(pane = "circles")
-        )
-    })
-
-    # observe({
-    #   leaflet::leafletProxy("map", session, data = df_origin()) %>%
-    #     leaflet::addCircleMarkers(
-    #       lng = ~ori_lon,
-    #       lat = ~ori_lat,
-    #       radius = ~ calc_radius(n),
-    #       fillColor = "steelblue",
-    #       fillOpacity = 0.8,
-    #       weight = 1,
-    #       color = "#FFFFFF",
-    #       label = ~ paste(n, "flights"),
-    #       group = "Origin",
-    #       options = leaflet::pathOptions(pane = "circles")
-    #     )
-    # })
-
-    # observe({
-    #   leaflet::leafletProxy("map", session, data = df_destination()) %>%
-    #     leaflet::addCircleMarkers(
-    #       lng = ~dest_lon,
-    #       lat = ~dest_lat,
-    #       radius = ~ calc_radius(n),
-    #       fillColor = "red",
-    #       fillOpacity = 0.8,
-    #       weight = 1,
-    #       color = "#FFFFFF",
-    #       label = ~ paste(n, "flights"),
-    #       group = "Destination",
-    #       options = leaflet::pathOptions(pane = "circles")
-    #     )
-    # })
     
     # Time-Series ===========================================
     
@@ -482,11 +382,11 @@ mod_amex_server <- function(id,
         
         y_var <- sym(input$display)
         
-        df <- amex_ready() %>% 
+        df <- amex_ready() |> 
           
-          rename("date_group" = input$date_interval) %>% 
+          rename("date_group" = input$date_interval) |> 
           
-          mutate(date_group = fct_relevel(as.character(date_group)) ) %>% 
+          mutate(date_group = fct_relevel(as.character(date_group)) ) |> 
           
           summarise(
             .by = c(!!group_sym, date_group), 
@@ -495,9 +395,9 @@ mod_amex_server <- function(id,
             distance_miles = round(sum(distance_miles), digits = 1), 
             gross_amount = round(sum(gross_amount), digits = 1),
             emission = round(sum(emission), digits = 1)
-          ) %>% 
+          ) |> 
           
-          arrange(date_group) %>% 
+          arrange(date_group) |> 
           
           mutate(lab = fmt_n(!!y_var), 
                  
@@ -531,14 +431,15 @@ mod_amex_server <- function(id,
         
       }
       
-      base_hc %>%
+      base_hc |>
         
         hc_xAxis(title = list(text = str_to_sentence(input$date_interval)), 
-                 categories = levels(hc_df()$date_group)) %>% 
+                 categories = levels(hc_df()$date_group)) |> 
         
-        hc_yAxis(title = list(text = matchmaker::match_vec(input$display, display_lab, from = 1, to = 2)
+        hc_yAxis(title = list(text = names(display_var[display_var == input$display])
                               
-        )) %>%
+                              
+        )) |>
         
         hc_tooltip(useHTML = TRUE,
                    formatter = JS("
@@ -555,7 +456,6 @@ mod_amex_server <- function(id,
     # Distributions =======================================
     
     #observe Event for distribution year input 
-    
     observeEvent(input$date_range, {
       
       year_choices <- sort(unique(amex_ready()$year), decreasing = TRUE)
@@ -578,22 +478,22 @@ mod_amex_server <- function(id,
       
       if(input$dist_year != "All years"){
         
-        hc_var <- amex_ready() %>% 
+        hc_var <- amex_ready() |> 
           
-          filter(year == input$dist_year) %>% 
+          filter(year == input$dist_year) |> 
           
           pull(!!dist_var_sym)
         
       } else {
         
-        hc_var <- amex_ready() %>% 
+        hc_var <- amex_ready() |> 
           
           pull(!!dist_var_sym)
       }
       
       hchart(hc_var, 
              
-             name = matchmaker::match_vec(input$dist_var, display_lab, from = 1, to = 2) ) %>% 
+             name = names(display_var[display_var == input$dist_var])) |> 
         
         hc_xAxis(
           plotLines = list(
@@ -621,7 +521,7 @@ mod_amex_server <- function(id,
       
       if(input$dist_year != "All years"){
         
-        amex_box <- amex_ready() %>% 
+        amex_box <- amex_ready() |> 
           filter(year == input$dist_year)
         
       } else {
@@ -633,21 +533,21 @@ mod_amex_server <- function(id,
       box_df <- data_to_boxplot(amex_box, 
                                 !!dist_var_sym, 
                                 group_var = !!date_interval_sym,
-                                name = matchmaker::match_vec(input$dist_var, display_lab, from = 1, to = 2), 
+                                name = names(display_var[display_var == input$dist_var]), 
                                 #showInLegend = FALSE
       )
       
-      highchart() %>%
-        hc_chart(zoomType = "x") %>%
+      highchart() |>
+        hc_chart(zoomType = "x") |>
         hc_xAxis(
           type = "category",
           crosshair = TRUE
-        ) %>%
+        ) |>
         hc_yAxis(
-          title = list(text = matchmaker::match_vec(input$dist_var, display_lab, from = 1, to = 2))
-        ) %>%
+          title = list(text = names(display_var[display_var == input$dist_var]))
+        ) |>
         
-        hc_add_series_list(box_df) %>%
+        hc_add_series_list(box_df) |>
         
         hc_tooltip(shared = TRUE) 
     })
@@ -659,10 +559,10 @@ mod_amex_server <- function(id,
       
       bar_group_sym <- sym(input$bar_group)
       
-      hc_df <- amex_ready() %>% 
+      hc_df <- amex_ready() |> 
         
         #filter out Nas for group var
-        drop_na(!!bar_group_sym) %>% 
+        drop_na(!!bar_group_sym) |> 
         
         summarise(.by = c(!!bar_group_sym), 
                   n_flights = n(), 
@@ -670,30 +570,29 @@ mod_amex_server <- function(id,
                   distance_miles = sum(distance_miles), 
                   gross_amount = sum(gross_amount),
                   emission = round(digits = 1, sum(emission))
-        ) %>% 
+        ) |> 
         
         mutate(label = fmt_n(!!bar_var_sym), 
-               percent = scales::percent(!!bar_var_sym/sum(!!bar_var_sym), accuracy = .1 )) %>% 
+               percent = scales::percent(!!bar_var_sym/sum(!!bar_var_sym), accuracy = .1 )) |> 
         
-        rename("group_var" = input$bar_group ) %>% 
+        rename("group_var" = input$bar_group ) |> 
         
         arrange(desc(!!bar_var_sym))
       
       hchart(hc_df, 
              "column", 
              hcaes(x = group_var, 
-                   y = !!bar_var_sym)) %>% 
+                   y = !!bar_var_sym)) |> 
         
-        hc_yAxis(title = list(text = matchmaker::match_vec(input$bar_var, display_lab, from = 1, to = 2)) ) %>% 
-        hc_xAxis(title = list(text = matchmaker::match_vec(input$bar_group, dict_bar_group, from = 1, to = 2)) ) %>% 
-        
+        hc_yAxis(title = list(text = names(display_var[display_var == input$bar_var]) )) |> 
+        hc_xAxis(title = list(text = names(bar_group[bar_group == input$bar_group]) )) |> 
         hc_tooltip(useHTML = TRUE,
                    formatter = JS("
     function(){
     outHTML =  '<i>' + this.point.group_var + '</i> <br> <b>' + this.point.label + ' (' + this.point.percent + ')</b>' 
      return(outHTML)
      
-     }") ) %>% 
+     }") ) |> 
         
         hc_chart(inverted=TRUE)
       
@@ -703,21 +602,21 @@ mod_amex_server <- function(id,
     
     output$table <- renderReactable({
       
-      geo_tab <- amex_ready() %>% 
-        summarise(.by = dest, 
+      geo_tab <- amex_ready() |> 
+        summarise(.by = dest_city_name, 
                   n_flights = n(), 
                   emission = sum(emission), 
                   main_org = org[max(n())]
                   
-        ) %>%
+        ) |>
         
         mutate(emission_pct = scales::percent(emission / sum(emission)), 
                emission = fmt_n(emission), 
-               emission = paste0(emission, " (", emission_pct, ")")) %>% 
+               emission = paste0(emission, " (", emission_pct, ")")) |> 
         
-        select(-emission_pct) %>% 
+        select(-emission_pct) |> 
         
-        arrange(desc(n_flights)) %>% 
+        arrange(desc(n_flights)) |> 
         
         head(n = 20)
       
@@ -737,11 +636,104 @@ mod_amex_server <- function(id,
     )
     
     # Map ==================================================
+    df_origin <- reactive({
+      amex_ready() |>
+        summarise(
+          .by = ori_city_name,
+          ori_lon = mean(ori_city_lon, na.rm = TRUE),
+          ori_lat = mean(ori_city_lat, na.rm = TRUE),
+          n = n()
+        ) |> 
+        tidyr::drop_na()
+    })
     
+    df_destination <- reactive({
+      amex_ready() |>
+        summarise(
+          .by = dest_city_name,
+          dest_lon = mean(dest_city_lon, na.rm = TRUE),
+          dest_lat = mean(dest_city_lat, na.rm = TRUE),
+          n = n()
+        ) |> 
+        tidyr::drop_na()
+    })
     
+    output$map <- leaflet::renderLeaflet({
+      leaflet::leaflet() |>
+        leaflet::setView(0, 10, zoom = 2) |>
+        leaflet::addMapPane(name = "circles", zIndex = 410) |>
+        leaflet::addMapPane(name = "place_labels", zIndex = 450) |>
+        leaflet::addProviderTiles("CartoDB.Positron", group = "Light") |>
+        # leaflet::addProviderTiles("OpenStreetMap", group = "OSM") |>
+        leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) |>
+        leaflet.extras::addFullscreenControl(position = "topleft") |>
+        leaflet.extras::addResetMapButton() |>
+        leaflet::addLayersControl(
+          baseGroups = c("Origin", "Destination"),
+          position = "topright",
+          options = layersControlOptions(collapsed = FALSE)
+        ) |> 
+        leaflet::addCircleMarkers(
+          data = df_origin(),
+          lng = ~ori_lon,
+          lat = ~ori_lat,
+          radius = ~ calc_radius(n),
+          fillColor = "steelblue",
+          fillOpacity = 0.8,
+          weight = 1,
+          color = "#FFFFFF",
+          label = ~ paste(ori_city_name, n, "flights"),
+          group = "Origin",
+          options = leaflet::pathOptions(pane = "circles")
+        ) |>
+        leaflet::addCircleMarkers(
+          data = df_destination(),
+          lng = ~dest_lon,
+          lat = ~dest_lat,
+          radius = ~ calc_radius(n),
+          fillColor = "red",
+          fillOpacity = 0.8,
+          weight = 1,
+          color = "#FFFFFF",
+          label = ~ paste(dest_city_name, n, "flights"),
+          group = "Destination",
+          options = leaflet::pathOptions(pane = "circles")
+        )
+    })
     
+    # observe({
+    #   leaflet::leafletProxy("map", session, data = df_origin()) |>
+    #     leaflet::addCircleMarkers(
+    #       lng = ~ori_lon,
+    #       lat = ~ori_lat,
+    #       radius = ~ calc_radius(n),
+    #       fillColor = "steelblue",
+    #       fillOpacity = 0.8,
+    #       weight = 1,
+    #       color = "#FFFFFF",
+    #       label = ~ paste(n, "flights"),
+    #       group = "Origin",
+    #       options = leaflet::pathOptions(pane = "circles")
+    #     )
+    # })
     
-    # # Download  ==================================================
+    # observe({
+    #   leaflet::leafletProxy("map", session, data = df_destination()) |>
+    #     leaflet::addCircleMarkers(
+    #       lng = ~dest_lon,
+    #       lat = ~dest_lat,
+    #       radius = ~ calc_radius(n),
+    #       fillColor = "red",
+    #       fillOpacity = 0.8,
+    #       weight = 1,
+    #       color = "#FFFFFF",
+    #       label = ~ paste(n, "flights"),
+    #       group = "Destination",
+    #       options = leaflet::pathOptions(pane = "circles")
+    #     )
+    # })
+    
+    # Download  ==================================================
     
     output$download <- downloadHandler(
       
@@ -758,8 +750,6 @@ mod_amex_server <- function(id,
         write.csv(amex_ready(), file)
       }
     ) 
-    
-    
   }
   )
 }

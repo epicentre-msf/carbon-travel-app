@@ -6,8 +6,6 @@
 # Author: Hugo Soubrier
 #
 # Date Created: 2024-01-12
-#
-# Copyright (c) Hugo SOUBRIER, 2024
 # Email: hugo.soubrier@epicentre.msf.org
 # ---------------------------
 # Notes:
@@ -20,10 +18,10 @@
 
 pacman::p_load(
   rio, # import funcs
-  fs, # work with path
   here, # create relative paths
   janitor, # data cleaning
-  airportr,
+  sf, 
+  sfnetworks,
   tidyverse # data science
 )
 
@@ -31,52 +29,99 @@ pacman::p_load(
 source(here::here("R", "set_paths.R"))
 source(here::here("R", "utils.R"))
 
-# Set paths -------------------------------------------------------------
-
-paths <- set_paths()
-
-sharepoint_path <- paths$sharepoint_path
-
-raw_path <- fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "data", "raw")
-clean_path <- fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "data", "clean")
-
 # Import data -------------------------------------------------------------
+dat <- readRDS(here::here("data","clean", "amex_clean_lon_lat.rds"))
 
-# Airport + MSF data 
+msf <- readRDS(here::here("data","clean", "unique_msf_clean.rds"))
 
-dat <- import(fs::path(clean_path, "air_msf.rds"))
+df_cities <- readRDS(here::here("data", "clean", "df_cities.rds"))
+df_airports <- readRDS(here::here("data", "clean", "df_airports.rds"))
+
+conversion_df <- readRDS(here::here("data", "clean", "conversion_df.rds"))
+
+# Create a Network from amex data -----------------------------------------
+
+dat <- dat |> 
+  
+  select(contains("city"), -city_pairs) 
+
+routes <- dat |> 
+  
+  summarise(
+    .by = c(ori_city_code, 
+            dest_city_code, 
+            ), 
+    n = n(),
+    ori_city_lat = unique(ori_city_lat), 
+    ori_city_lon = unique(ori_city_lon), 
+    dest_city_lat = unique(dest_city_lat), 
+    dest_city_lon = unique(dest_city_lon), 
+    
+  ) |> 
+  tidyr::drop_na()
+
+#prepare Edges 
+edges <- routes |> 
+  rename(from = ori_city_code, 
+         to = dest_city_code) |> 
+  select(from, to ) 
+
+#prepare destination cities 
+net_dest <- tibble(city_code = c(routes$ori_city_code,routes$dest_city_code), 
+                 city_lon = c(routes$ori_city_lon,routes$dest_city_lon), 
+                 city_lat = c(routes$ori_city_lat,routes$dest_city_lat)) |>  
+  
+  left_join(df_cities, by = join_by(city_code)) |> 
+  
+  distinct(city_code, .keep_all = TRUE) |> 
+  
+  left_join(select(msf, city_code, msf_type ), by = join_by(city_code)) |> 
+  mutate(msf = !is.na(msf_type))
+
+# Create a destination dataframe using the nodes
+readr::write_rds(net_dest, here::here("data", "clean", "dest_cities.rds"))
+
+#prepare nodes
+nodes <- net_dest |> 
+  rename(name = city_code) |> 
+  sf::st_as_sf(coords = c("city_lon", "city_lat"), crs =4326) 
+
+#create the network
+net <- sfnetwork(nodes, edges, node_key = "city_code", edges_as_lines = TRUE, directed = FALSE)
+
+# Plot the network 
+mapview::mapview( net |> activate("nodes") |> st_as_sf(),
+                  col.regions = "red",
+                  legend = NULL,
+                  layer.name = "nodes" ) +
+
+  mapview::mapview( net |> activate("edges") |> st_as_sf(),
+                    layer.name = "edges")
+
+#save the network
+readr::write_rds(net, here::here("data", "clean", "amex_network.rds"))
 
 # Distance Matrix ---------------------------------------------------------
+#st_network calculates the shortest distance using Haversine 
 
-#calculate the haversine distance between all airports in df
-#this can take time if many airports
+mat <- sfnetworks::st_network_cost(net)
 
-start <- Sys.time()
-mat <- geosphere::distm(
-  select(dat, mean_longitude, mean_latitude),
-  select(dat, mean_longitude, mean_latitude),
-  fun = geosphere::distHaversine
-)
-end <- Sys.time()
-diff <- end - start
-print(diff)
+#distance between Melbourne and Buenos aires 
+#in network
+mat[["TBS", "SCL"]]
+# using haversine 
 
-#name the matrix cols and rows
-colnames(mat) <- dat$city_id
-rownames(mat) <- dat$city_id
+nodes |> filter(name %in% c("TBS", "SCL"))
+geosphere::distHaversine(c(-58.4757, -34.6907), c(28.77981, 41.25644) )
+
+#12270.240
+#12259.955
+
+# Divide the matrix by 1000 to get in kilometers 
+
+mat <- mat/1000
+
+units(mat) <-NULL
 
 #save the matrix
-readr::write_rds(mat, fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "Data", "distance-matrix", "airports_distance_matrix.rds"))
-
-# # Create a IATA distance matrix -------------------------------------------
-# start <- Sys.time()
-# mat_iata <- geosphere::distm(select(iata, longitude, latitude), 
-#                              select(iata, longitude, latitude))
-# end <- Sys.time()
-# diff <- start - end
-# 
-# #name the matrix cols and rows
-# colnames(mat_iata) <- iata$iata
-# rownames(mat_iata) <- iata$iata
-# 
-# saveRDS(mat_iata, "data/distance-matrix/iata_distance_matrix.rds")
+readr::write_rds(mat, here::here("data", "clean", "distance_matrix.rds"))

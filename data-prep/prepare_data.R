@@ -1,13 +1,11 @@
 # ---------------------------
-# Script name: prepare_data.R
+# Script name: city_code.R
 #
-# Purpose of script: Prepare the destination database
+# Purpose of script: Prepare the data for distance matrix calculations
 #
 # Author: Hugo Soubrier
 #
 # Date Created: 2024-01-18
-#
-# Copyright (c) Hugo SOUBRIER, 2024
 # Email: soubrierhugo@gmail.com
 # ---------------------------
 # Notes:
@@ -36,169 +34,196 @@ source(here::here("R", "utils.R"))
 
 # Set paths -------------------------------------------------------------
 
-paths <- set_paths()
+path_data <- fs::path(
+  Sys.getenv("SHAREPOINT_PATH"),
+  "Maelle CHARRIER - TOOL",
+  "Data"
+)
 
-sharepoint_path <- paths$sharepoint_path
+fs::dir_create("data", "clean")
+raw_path <- fs::path(path_data, "raw")
+clean_path <- fs::path("data", "clean")
 
-raw_path <- fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "data", "raw")
-clean_path <- fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "data", "clean")
+airport_city_path <- fs::path(path_data, "raw", "airport-city-codes.xlsx")
 
-# Cities data  ------------------------------------------------------------
-cities_clean <- maps::world.cities %>%
-  as_tibble() %>%
-  clean_names() %>%
-  rename(
-    city = name,
-    country = country_etc
-  ) %>%
-  mutate(
-    city = tolower(city),
-    city = str_remove(city, "'"),
-    city = str_squish(city),
-    country = str_to_lower(country),
-    capital = as.logical(capital),
-    country = case_when(
-      country == "uk" ~ "united kingdom",
-      country == "usa" ~ "united states of america",
-      country == "congo" ~ "republic of congo",
-      country == "congo democratic republic" ~ "democratic republic of congo",
-      .default = country
-    )
-  ) %>%
-  select(country, city, capital)
+# Airports & cities -------------------------------------------------------------
 
-# get capital cities
-capital <- cities_clean %>%
-  filter(capital == 1) %>%
-  select(city, country)
+#Create a dataframe of all airports with the city code attached to it
 
-# Airports data -----------------------------------------------------------
-# prepare the airports data
-air_clean <- airports %>%
-  clean_names() %>%
-  filter(
-    !is.na(country),
-    !is.na(city)
-  ) %>%
-  mutate(
-    city = tolower(str_squish(city)),
-    country = tolower(str_squish(country)),
-    country = case_when(
-      country == "congo (brazaville)" ~ "republic of congo",
-      country == "congo (kinshasa)" ~ "democratic republic of congo",
-      country == "united states" ~ "united states of america",
-      .default = country
-    ),
-    iso3 = countrycode::countrycode(country, "country.name", "iso3c"),
-    capital = city %in% capital$city
-  ) %>%
-  # keep the airports with a valid IATA code
-  # also some airports have no city name (39)
-  filter(
-    iata != "\\N",
-    !is.na(city)
-  ) %>%
-  select(country, iso3, city, name, latitude, longitude, iata, icao, capital)
+airport_city_sheets <- readxl::excel_sheets(airport_city_path)
 
-# Add all airports cities ---------------------------------------------------
+df_airport_city <- map_df(airport_city_sheets, ~ {
+  readxl::read_excel(airport_city_path, sheet = .x) |>
+    filter(!code %in% c("Airport", "Code", "City", "Code")) |>
+    separate(code, into = c("iata_code", "city_code")) |>
+    drop_na()
+})
 
-# For cities with multiple airports: take the mean lat/long of all airports
-air_unique <- air_clean %>%
-  group_by(country, iso3, city) %>%
+# Airport database
+df_airports <- df_airport_city |>
+  left_join(
+    airportr::airports |>
+      select(
+        iata_code = IATA,
+        airport_name = Name,
+        country_name = Country,
+        country_code2 = `Country Code (Alpha-2)`,
+        country_code3 = `Country Code (Alpha-3)`,
+        city_name = City,
+        lon = Longitude,
+        lat = Latitude
+      ),
+    by = join_by(iata_code)
+  ) |>
+  select(iata_code, airport_name, city_name, city_code, everything())
+
+# fix the duplicated for same code + different city name (BRU: Brussels and Charleroi)
+df_airports <- df_airports |> 
+  mutate(city_code = case_when(
+    city_name == "Faleolo" ~ "FAL", 
+    city_name == "Alanya" ~ "AYL", 
+    city_name == "Charleroi" ~ "CHR", 
+    city_name == "Dallas" ~ "DAL", 
+    city_name == "Prestwick" ~ "PRW", 
+    city_name == "Rio Negro" ~ "RIN", 
+    city_name == "Bergamo" ~ "BEO", 
+    city_name == "Augsburg" ~ "AUG", 
+    city_name == "Newark" ~ "NWK", 
+    city_name == "Kadena" ~ "KDA", 
+    city_name == "Sandefjord" ~ "SAJ", 
+    city_name == "Keflavik" ~ "KEF", 
+    city_name == "Campinas" ~ "CAM", 
+    city_name == "Hewandorra" ~ "HWR", 
+    city_name == "Charlotte Amalie" ~ "CHM", 
+    city_name == "Treviso" ~ "TVI", 
+    city_name == "Baltimore" ~ "BAT", 
+    .default = city_code
+  ), 
+  
+  city_name = case_when(city_name == "Milan" ~"Milano", 
+                        city_name == "Teheran" ~ "Tehran",
+                        .default = city_name)
+  
+  ) 
+
+write_rds(df_airports, here::here(clean_path, "df_airports.rds"))
+
+# City database
+# group for cities with more than 1 airport
+df_cities <- df_airports |>
   summarise(
-    n_airports = n(),
-    iata = paste0(iata, collapse = ", "),
-    mean_latitude = mean(latitude),
-    mean_longitude = mean(longitude),
-    .groups = "drop"
-  ) %>%
-  ungroup() %>%
-  select(country, iso3, city, mean_latitude, mean_longitude)
+    .by = c(city_code, city_name, country_name, country_code3),
+    lon = mean(lon, na.rm = TRUE),
+    lat = mean(lat, na.rm = TRUE)
+  ) |>
+  rename(country_code = country_code3) |>
+  # remove duplicated
+  distinct(city_name, .keep_all = TRUE)
 
-export(air_unique, fs::path(clean_path, "air_unique.rds"))
+write_rds(df_cities, here::here(clean_path, "df_cities.rds"))
 
 # MSF data ----------------------------------------------------------------
 
 # load MSF project data from the GIS unit
-msf_proj <- import(fs::path(raw_path, "msf-data", "msf_presence_layer.xlsx")) %>%
-  as_tibble() %>%
+msf_proj <- import(fs::path(raw_path, "msf-data", "msf_presence_layer.xlsx")) |>
+  as_tibble() |>
   clean_names()
 
 # try to geo code the missing cities from lat/long ?
-msf_raw <- msf_proj %>%
+msf_raw <- msf_proj |>
   rename(
     city = locality,
     msf_type = type_2
-  ) %>%
-  # filter(!is.na(country), !is.na(city)) %>%
-  filter(!str_detect(city, "\\?")) %>%
+  ) |>
+  filter(!str_detect(city, "\\?")) |>
   mutate(
     across(c(country, city), ~ str_squish(str_to_lower(.x))),
-    iso3 = countrycode::countrycode(country, "country.name", "iso3c")
-  ) %>%
-  relocate(iso3, .after = country)
+    country_code = countrycode::countrycode(country, "country.name", "iso3c"),
+    lat = as.numeric(lat),
+    long = as.numeric(long)
+  ) |>
+  relocate(country_code, .after = country)
 
-# Match the airport cities to MSF cities  ---------------------------------
+# get unique MSF cities
+cities_raw <- msf_raw |>
+  distinct(city, country_code) |>
+  rename(city_name = city)
 
-# using the airport data as the reference
-# unique cities in airport data
-air_city <- air_unique %>% distinct(iso3, city)
-
-# all the match rows
-msf_clean <- hmatch_composite(
-  msf_raw,
-  air_city,
-  by = c("iso3", "city"),
+# Match the airport cities to MSF cities
+msf_match <- hmatch_composite(
+  cities_raw,
+  df_cities,
+  by = c(
+    "city_name",
+    "country_code"
+  ),
   fuzzy = TRUE
-) %>%
-  mutate(
-    iso3 = coalesce(ref_iso3, iso3),
-    city = coalesce(ref_city, city)
-  ) %>%
-  select(!contains("ref_")) %>%
-  relocate(c(country, iso3, city), 1) %>%
-  arrange(country, city)
+) |>
+  mutate(match = !is.na(ref_city_name)) |>
+  filter(match)
 
-export(msf_clean, fs::path(clean_path, "full_msf_clean.xlsx"))
+# join to MSF data
+
+msf_clean <- left_join(
+  msf_raw,
+  msf_match,
+  by = c("city" = "city_name")
+) |>
+  mutate(
+    city_name = coalesce(
+      ref_city_name,
+      city
+    ),
+    country_name = coalesce(country_name, country),
+    country_code = coalesce(ref_country_code, country_code.x),
+    lat = coalesce(lat.y, lat.x),
+    long = coalesce(lon, long)
+  ) |>
+  relocate(c(city_name, city_code, country_name, country_code), .after = oc) |>
+  relocate(c(lat, long), .after = intervention_type) |>
+  select(-c(
+    city,
+    country,
+    country_code.y,
+    country_code.x,
+    lon,
+    lat.x,
+    lat.y,
+    ref_country_code,
+    ref_city_name,
+    match_type,
+    match,
+    update_by,
+    close_date_precision
+  )) |>
+  mutate(across(c(city_name, country_name), ~ str_to_sentence(.x)))
+
+write_rds(msf_clean, fs::path(clean_path, "full_msf_clean.rds"))
 
 # keep one row per city
-msf_unique <- msf_clean %>%
-  group_by(country, city) %>%
+msf_unique <- msf_clean |>
   summarise(
-    n_msf_oc = paste0(unique(oc), collapse = ", "),
+    .by = c(country_name, country_code, city_name, city_code),
+    n_msf_oc = n_distinct(oc),
     oc = paste0(unique(oc), collapse = ", "),
-    msf_type = paste0(unique(msf_type), collapse = ", "),
-    .groups = "drop"
-  ) %>%
-  ungroup() %>%
+    msf_type = paste0(unique(msf_type), collapse = ", ")
+  ) |>
   select(
-    country,
-    city,
+    country_name,
+    country_code,
+    city_name,
+    city_code,
     oc,
     msf_type
-  ) %>%
-  filter(!is.na(city))
-
-export(msf_unique, fs::path(clean_path, "unique_msf_clean.rds") )
-
-# Join airport and MSF data -----------------------------------------------
-
-air_msf <- air_unique %>%
-  left_join(msf_unique) %>%
-  mutate(
-    msf = !is.na(msf_type),
-    # required to deal with cities that have the same name in different countries
-    city_id = paste0(country, "-", city)
   )
 
-export(air_msf, fs::path(clean_path, "air_msf.rds"))
+write_rds(msf_unique, fs::path(clean_path, "unique_msf_clean.rds"))
 
 # Conversion factors (given by Maelle) ------------------------------------
-
 conversion_df <- data.frame(
   distance = c("0-999 km", "1000-3499 km", "+ 3500 km"),
   distance_cat = c("short", "medium", "long"),
   co2e = c(0.25858, 0.18746, 0.15196)
 )
 
-export(conversion_df, fs::path(clean_path, "conversion_df.rds") )
+export(conversion_df, fs::path(clean_path, "conversion_df.rds"))
