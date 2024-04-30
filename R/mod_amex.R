@@ -362,12 +362,68 @@ mod_amex_server <- function(id,
     
     # Ratio table  ===========================================
     
+    output$ratio_tab <- renderReactable({
+      
+      dat_year <- amex_ready() |> 
+        summarise(.by = year, 
+                  emissions = round(sum(emission), digits = 0), 
+                  spent = sum(gross_amount), 
+                  tot_km = sum(distance_km), 
+                  tot_miles = sum(distance_miles), 
+                  flights = n(), 
+                  passengers = n_distinct(traveler_name), 
+                  
+                  em_km = format(round(emissions/tot_km, digits = 6), scientific = TRUE),
+                  em_miles = format(round(emissions/tot_miles, digits = 6), scientific = TRUE),
+                  em_spent = format(round(emissions/spent, digits = 4), scientific = TRUE),
+                  em_flights = round(emissions/flights, digits = 3),
+                  em_passengers =  round(emissions/passengers, digits = 3)
+        ) |> 
+        select(year, emissions, contains("em_"))
+      
+      dat_tot <- amex_ready() |> 
+        summarise(emissions = round(sum(emission), digits = 0), 
+                  spent = sum(gross_amount), 
+                  tot_km = sum(distance_km), 
+                  tot_miles = sum(distance_miles), 
+                  flights = n(), 
+                  passengers = n_distinct(traveler_name), 
+                  
+                  em_km = format(round(emissions/tot_km, digits = 6), scientific = TRUE),
+                  em_miles = format(round(emissions/tot_miles, digits = 6), scientific = TRUE),
+                  em_spent = format(round(emissions/spent, digits = 4), scientific = TRUE),
+                  em_flights = round(emissions/flights, digits = 3),
+                  em_passengers =  round(emissions/passengers, digits = 3)
+        ) |> 
+        mutate(year = "Global") |> 
+        
+        select(year, emissions, contains("em_"))
+      
+      dat <- bind_rows(dat_year, dat_tot)
+      
+      reactable(dat,
+                highlight = TRUE,
+                searchable = TRUE,
+                compact = TRUE,
+                defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
+                columns = list(
+                  year = colDef("Year", align = "left"),
+                  emissions = colDef("Emissions (kg)", align = "left"),
+                  em_km = colDef("Emissions/km", align = "left"),
+                  em_miles = colDef("Emissions/miles", align = "left"),
+                  em_spent = colDef("Emissions/€", align = "left"),
+                  em_flights = colDef("Emissions/flights", align = "left"),
+                  em_passengers = colDef("Emissions/passengers", align = "left")
+                )
+      )
+    })
+    
     # Map  ===========================================
     
     df_origin <- reactive({
       amex_ready() %>%
         summarise(
-          .by = ori_city_code,
+          .by = c(ori_city_code, ori_city_name),
           ori_lon = mean(ori_lon, na.rm = TRUE),
           ori_lat = mean(ori_lat, na.rm = TRUE),
           n = n()
@@ -378,7 +434,7 @@ mod_amex_server <- function(id,
     df_destination <- reactive({
       amex_ready() %>%
         summarise(
-          .by = dest_city_code,
+          .by = c(dest_city_code, dest_city_name),
           dest_lon = mean(dest_lon, na.rm = TRUE),
           dest_lat = mean(dest_lat, na.rm = TRUE),
           n = n()
@@ -410,7 +466,7 @@ mod_amex_server <- function(id,
           fillOpacity = 0.8,
           weight = 1,
           color = "#FFFFFF",
-          label = ~ paste(ori_city_code, n, "flights"),
+          label = ~ paste(ori_city_name, n, "flights"),
           group = "Origin",
           options = leaflet::pathOptions(pane = "circles")
         ) %>%
@@ -423,7 +479,7 @@ mod_amex_server <- function(id,
           fillOpacity = 0.8,
           weight = 1,
           color = "#FFFFFF",
-          label = ~ paste(dest_city_code, n, "flights"),
+          label = ~ paste(dest_city_name, n, "flights"),
           group = "Destination",
           options = leaflet::pathOptions(pane = "circles")
         )

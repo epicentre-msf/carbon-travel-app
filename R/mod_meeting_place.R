@@ -19,8 +19,6 @@ mod_meeting_place_server <- function(id,
     
     dest_fil <- reactive( {
       
-      #browser()
-      
       msf_type <- paste(input$msf_type_select, collapse = "|")
       
       if(input$msf_all == "msf") {

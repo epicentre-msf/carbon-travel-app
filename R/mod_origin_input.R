@@ -46,9 +46,6 @@ mod_origin_input_ui <- function(id) {
     
     div( 
       div(
-        
-        id = ns("msf_all"), 
-        
         shinyWidgets::radioGroupButtons(
           inputId = ns("msf_all"), 
           label = "All destinations or only MSF ?", 
@@ -61,8 +58,6 @@ mod_origin_input_ui <- function(id) {
       ),
       
       div(
-        id =  ns("msf_type_select"),
-        
         shinyWidgets::pickerInput(
           inputId = ns("msf_type_select"), 
           label = "MSF type", 
