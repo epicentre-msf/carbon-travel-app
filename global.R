@@ -1,6 +1,7 @@
 # Global for Carbon-travel-App
 library(shiny)
 library(bslib)
+library(shinylogs)
 library(tidyverse)
 library(gt)
 library(highcharter)
@@ -17,10 +18,10 @@ source(here::here("R", "utils_hc.R"))
 clean_path <- here::here("data", "clean")
 
 # Setup -------------------------------------------------------------------
-app_name <- "carbon_app"
-app_title <- "Carbon Travel App"
-app_font <- "Alegreya Sans"
-p_font <- "Merriweather"
+app_name <- "msf-carbon-app"
+app_title <- "MSF Carbon Travel App"
+sp_path <- Sys.getenv("SHINYPROXY_PUBLIC_PATH")
+is_sp_env <- sp_path != ""
 
 # Import data -------------------------------------------------------------
 
@@ -35,6 +36,9 @@ msf <- read_rds(here::here(clean_path, "unique_msf_clean.rds"))
 
 msf_type_vec <- read_rds(here::here(clean_path, "full_msf_clean.rds")) |> distinct(msf_type) |> pull(msf_type)
 
+# get the conversion df - given by Maelle
+df_conversion <- read_rds(here::here("data", "clean", "conversion_df.rds"))
+
 # get the conversion df
 conversion_df <- read_rds(here::here(clean_path, "conversion_df.rds"))
 
@@ -48,7 +52,7 @@ min_date <- min(init_date_range)
 max_date <- max(init_date_range)
 
 # local disk cache
-shiny::shinyOptions(cache = cachem::cache_disk(here::here(".cache")))
+# shiny::shinyOptions(cache = cachem::cache_disk(here::here(".cache")))
 
 disconnected <- sever::sever_default(
   title = "Disconnected",

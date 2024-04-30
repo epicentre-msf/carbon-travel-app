@@ -1,34 +1,29 @@
 mod_amex_ui <- function(id) {
-  
   ns <- NS(id)
   
   nav_panel(
     "Flight data analysis",
-    
     layout_sidebar(
       fillable = FALSE,
       sidebar = sidebar(
         width = 300,
         gap = 0,
-        
         shinyWidgets::sliderTextInput(
           inputId = ns("date_range"),
           label = "Time period",
-          choices = init_date_range, 
-          selected = c(min_date, max_date), 
+          choices = init_date_range,
+          selected = c(min_date, max_date),
           grid = FALSE,
           animate = FALSE,
           width = "95%"
         ),
-        
         shiny::selectizeInput(
           inputId = ns("select_org"),
           label = "Organisation",
           choices = unique(df_amex$org),
-          multiple = TRUE, 
+          multiple = TRUE,
           options = list(placeholder = "All", plugins = "remove_button")
-        ), 
-        
+        ),
         div(class = "pt-3", shiny::downloadButton(
           outputId = ns("download"),
           label = "Download data"
@@ -37,7 +32,7 @@ mod_amex_ui <- function(id) {
       
       # VALUE BOXES ========================
       layout_column_wrap(
-        width = 1/4,
+        width = 1 / 4,
         fill = FALSE,
         value_box(
           title = "Flights",
@@ -45,7 +40,6 @@ mod_amex_ui <- function(id) {
           class = "vb",
           value = textOutput(ns("flight")),
         ),
-        
         value_box(
           title = "Total Distance",
           theme = "primary",
@@ -53,15 +47,13 @@ mod_amex_ui <- function(id) {
           value = textOutput(ns("dist")),
           uiOutput(ns("dist_info"))
         ),
-        
         value_box(
           title = "Total Emissions",
           theme = "primary",
           class = "vb",
           value = textOutput(ns("emission")),
           uiOutput(ns("emission_info"))
-        ), 
-        
+        ),
         value_box(
           title = "Routes",
           theme = "primary",
@@ -263,60 +255,51 @@ mod_amex_ui <- function(id) {
                            )
                            
                          )
-                         
       )
-      
     )
-    
   )
-  
 }
 
-mod_amex_server <- function(id, 
+mod_amex_server <- function(id,
                             df_amex) {
-  
   moduleServer(id, function(input, output, session) {
-    
     ns <- session$ns
     
-    #Prepare Amex data
+    # Prepare Amex data
     amex_org <- reactive({
-      
-      if(length(input$select_org)){ df_amex |> 
-          filter(org %in% input$select_org)
-      } else { df_amex }
+      if (length(input$select_org)) {
+        df_amex %>% filter(org %in% input$select_org)
+      } else {
+        df_amex
+      }
       
     })
     
-    #Update Reasons and Date Input depending on select_org 
-    observeEvent(input$select_org, 
-                 ignoreNULL = FALSE,{
-                   
+    # Update Reasons and Date Input depending on select_org
+    observeEvent(input$select_org,
+                 ignoreNULL = FALSE,
+                 {
                    min_date <- min(amex_org()$invoice_date)
                    max_date <- max(amex_org()$invoice_date)
                    
                    date_seq <- format(seq.Date(min_date, max_date, by = "month"), "%Y-%m")
                    
-                   shinyWidgets::updateSliderTextInput(session = session, 
-                                                       inputId = "date_range",
-                                                       choices = date_seq
+                   shinyWidgets::updateSliderTextInput(
+                     session = session,
+                     inputId = "date_range",
+                     choices = date_seq
                    )
-                   
                  }
     )
     
-    #Filter amex_org with date and reason value 
+    # Filter amex_org with date and reason value
     amex_ready <- reactive({
-      
       date <- paste0(input$date_range, "-01")
       
       df <- amex_org() |>
         filter(invoice_date >= date[1], invoice_date <= date[2])
-      
       return(df)
-      
     })
-    
     
     # Summary amex_ready() for value boxes
     amex_summary <- reactive({
@@ -362,92 +345,182 @@ mod_amex_server <- function(id,
     
     output$dist_info <- renderUI({
       req(amex_summary())
-      tags$small(glue::glue("{amex_summary()$tot_distance_miles} miles"
-      ))
+      tags$small(glue::glue("{amex_summary()$tot_distance_miles} miles"))
     })
     
     output$emission <- renderText({
-      
       req(amex_summary())
       paste(amex_summary()$tot_emissions, " tCO2e")
     })
     
-    output$emission_info <-  renderText({
+    output$emission_info <- renderText({
       req(amex_summary())
       
       paste(amex_summary()$emission_km, "tCO2e per Km")
     })
     
-
+    
     # Ratio table  ===========================================
     
     
-
+    df_origin <- reactive({
+      amex_ready() %>%
+        summarise(
+          .by = ori_city,
+          ori_lon = mean(ori_lon, na.rm = TRUE),
+          ori_lat = mean(ori_lat, na.rm = TRUE),
+          n = n()
+        ) %>%
+        tidyr::drop_na()
+    })
     
+    df_destination <- reactive({
+      amex_ready() %>%
+        summarise(
+          .by = dest_city,
+          dest_lon = mean(dest_lon, na.rm = TRUE),
+          dest_lat = mean(dest_lat, na.rm = TRUE),
+          n = n()
+        ) %>%
+        tidyr::drop_na()
+    })
+    
+    output$map <- leaflet::renderLeaflet({
+      leaflet::leaflet() %>%
+        leaflet::setView(0, 10, zoom = 2) %>%
+        leaflet::addMapPane(name = "circles", zIndex = 410) %>%
+        leaflet::addMapPane(name = "place_labels", zIndex = 450) %>%
+        leaflet::addProviderTiles("CartoDB.Positron", group = "Light") %>%
+        # leaflet::addProviderTiles("OpenStreetMap", group = "OSM") %>%
+        leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) %>%
+        leaflet.extras::addFullscreenControl(position = "topleft") %>%
+        leaflet.extras::addResetMapButton() %>%
+        leaflet::addLayersControl(
+          baseGroups = c("Origin", "Destination"),
+          position = "topright",
+          options = layersControlOptions(collapsed = FALSE)
+        ) %>%
+        leaflet::addCircleMarkers(
+          data = df_origin(),
+          lng = ~ori_lon,
+          lat = ~ori_lat,
+          radius = ~ calc_radius(n),
+          fillColor = "steelblue",
+          fillOpacity = 0.8,
+          weight = 1,
+          color = "#FFFFFF",
+          label = ~ paste(ori_city, n, "flights"),
+          group = "Origin",
+          options = leaflet::pathOptions(pane = "circles")
+        ) %>%
+        leaflet::addCircleMarkers(
+          data = df_destination(),
+          lng = ~dest_lon,
+          lat = ~dest_lat,
+          radius = ~ calc_radius(n),
+          fillColor = "red",
+          fillOpacity = 0.8,
+          weight = 1,
+          color = "#FFFFFF",
+          label = ~ paste(dest_city, n, "flights"),
+          group = "Destination",
+          options = leaflet::pathOptions(pane = "circles")
+        )
+    })
+    
+    # observe({
+    #   leaflet::leafletProxy("map", session, data = df_origin()) %>%
+    #     leaflet::addCircleMarkers(
+    #       lng = ~ori_lon,
+    #       lat = ~ori_lat,
+    #       radius = ~ calc_radius(n),
+    #       fillColor = "steelblue",
+    #       fillOpacity = 0.8,
+    #       weight = 1,
+    #       color = "#FFFFFF",
+    #       label = ~ paste(n, "flights"),
+    #       group = "Origin",
+    #       options = leaflet::pathOptions(pane = "circles")
+    #     )
+    # })
+    
+    # observe({
+    #   leaflet::leafletProxy("map", session, data = df_destination()) %>%
+    #     leaflet::addCircleMarkers(
+    #       lng = ~dest_lon,
+    #       lat = ~dest_lat,
+    #       radius = ~ calc_radius(n),
+    #       fillColor = "red",
+    #       fillOpacity = 0.8,
+    #       weight = 1,
+    #       color = "#FFFFFF",
+    #       label = ~ paste(n, "flights"),
+    #       group = "Destination",
+    #       options = leaflet::pathOptions(pane = "circles")
+    #     )
+    # })
     
     # Time-Series ===========================================
     
     output$time_serie <- renderHighchart({
-      
       req(amex_summary())
       
-      # Set filters 
-      if(input$group != "no grouping"){
-        group_sym <- sym(input$group)} else { group_sym <- NULL}
+      # Set filters
+      if (input$group != "no grouping") {
+        group_sym <- sym(input$group)
+      } else {
+        group_sym <- NULL
+      }
       
       
-      # Prepare data 
-      hc_df <- reactive( { 
-        
+      # Prepare data
+      hc_df <- reactive({
         y_var <- sym(input$display)
         
-        df <- amex_ready() |> 
-          
-          rename("date_group" = input$date_interval) |> 
-          
-          mutate(date_group = fct_relevel(as.character(date_group)) ) |> 
+        df <- amex_ready() %>%
+          rename("date_group" = input$date_interval) %>%
+          mutate(date_group = fct_relevel(as.character(date_group))) %>%
           
           summarise(
-            .by = c(!!group_sym, date_group), 
-            n_flights = n(), 
-            distance_km = round( sum(distance_km), digits = 1), 
-            distance_miles = round(sum(distance_miles), digits = 1), 
+            .by = c(!!group_sym, date_group),
+            n_flights = n(),
+            distance_km = round(sum(distance_km), digits = 1),
+            distance_miles = round(sum(distance_miles), digits = 1),
             gross_amount = round(sum(gross_amount), digits = 1),
             emission = round(sum(emission), digits = 1)
-          ) |> 
-          
-          arrange(date_group) |> 
-          
-          mutate(lab = fmt_n(!!y_var), 
-                 
-                 n_c = cumsum(!!y_var)
+          ) %>%
+          arrange(date_group) %>%
+          mutate(
+            lab = fmt_n(!!y_var),
+            n_c = cumsum(!!y_var)
           )
         
         return(df)
-        
       })
       
       n_var <- dplyr::if_else(input$cumulative, "n_c", input$display)
       
-      if(input$group == "no grouping") {
-        
-        base_hc <- hchart(hc_df(),
-                          "column", 
-                          hcaes(x = date_group, 
-                                y = !!sym(n_var))
-                          
+      if (input$group == "no grouping") {
+        base_hc <- hchart(
+          hc_df(),
+          "column",
+          hcaes(
+            x = date_group,
+            y = !!sym(n_var)
+          )
         )
-      } else { 
+      } else {
         
-        # Not in right x order if group is org 
-        base_hc <- hchart(hc_df(),
-                          "column", 
-                          hcaes(x = date_group, 
-                                y = !!sym(n_var), 
-                                group = !!group_sym
-                          )
+        # Not in right x order if group is org
+        base_hc <- hchart(
+          hc_df(),
+          "column",
+          hcaes(
+            x = date_group,
+            y = !!sym(n_var),
+            group = !!group_sym
+          )
         )
-        
       }
       
       base_hc |>
@@ -468,307 +541,182 @@ mod_amex_server <- function(id,
 
        }")
         )
-      
     })
     
     
     # Distributions =======================================
     
-    #observe Event for distribution year input 
+    # observe Event for distribution year input
+    
     observeEvent(input$date_range, {
-      
       year_choices <- sort(unique(amex_ready()$year), decreasing = TRUE)
       
       shiny::updateSelectizeInput("dist_year",
                                   choices = c(purrr::set_names("All years", NULL), year_choices),
                                   session = session
       )
-      
-    }
-    
-    )
+    })
     
     # Histograms
     output$dist_hist <- renderHighchart({
-      
       req(amex_summary())
       
       dist_var_sym <- sym(input$dist_var)
       
-      if(input$dist_year != "All years"){
-        
-        hc_var <- amex_ready() |> 
-          
-          filter(year == input$dist_year) |> 
-          
+      if (input$dist_year != "All years") {
+        hc_var <- amex_ready() %>%
+          filter(year == input$dist_year) %>%
           pull(!!dist_var_sym)
-        
       } else {
-        
-        hc_var <- amex_ready() |> 
-          
+        hc_var <- amex_ready() %>%
           pull(!!dist_var_sym)
       }
       
-      hchart(hc_var, 
-             
-             name = names(display_var[display_var == input$dist_var])) |> 
-        
+      hchart(hc_var,
+             name = names(display_var[display_var == input$dist_var])
+      ) %>%
         hc_xAxis(
           plotLines = list(
             list(
-              color = "red", 
-              zIndex = 1, 
+              color = "red",
+              zIndex = 1,
               value = median(hc_var),
               label = list(text = paste("Median", median(hc_var), "days"), verticalAlign = "bottom", textAlign = "left")
             )
           )
-        ) 
-      
+        )
     })
     
     
     
     # Boxplot
     output$dist_boxplot <- renderHighchart({
-      
       req(amex_summary())
       
       
       dist_var_sym <- sym(input$dist_var)
+      
       date_interval_sym <- sym(input$dist_interval) 
       
       if(input$dist_year != "All years"){
         
         amex_box <- amex_ready() |> 
           filter(year == input$dist_year)
-        
       } else {
-        
         amex_box <- amex_ready()
-        
       }
       
-      box_df <- data_to_boxplot(amex_box, 
-                                !!dist_var_sym, 
+      box_df <- data_to_boxplot(amex_box,
+                                !!dist_var_sym,
                                 group_var = !!date_interval_sym,
-                                name = names(display_var[display_var == input$dist_var]), 
-                                #showInLegend = FALSE
+                                name = names(display_var[display_var == input$dist_var])
+                                # showInLegend = FALSE
       )
       
-      highchart() |>
-        hc_chart(zoomType = "x") |>
+      highchart() %>%
+        hc_chart(zoomType = "x") %>%
         hc_xAxis(
           type = "category",
           crosshair = TRUE
         ) |>
         hc_yAxis(
           title = list(text = names(display_var[display_var == input$dist_var]))
-        ) |>
-        
-        hc_add_series_list(box_df) |>
-        
-        hc_tooltip(shared = TRUE) 
+        ) %>%
+        hc_add_series_list(box_df) %>%
+        hc_tooltip(shared = TRUE)
     })
     
     # Global parts ========================================
     output$barplot <- renderHighchart({
-      
       bar_var_sym <- sym(input$bar_var)
       
       bar_group_sym <- sym(input$bar_group)
-      
-      hc_df <- amex_ready() |> 
-        
-        #filter out Nas for group var
-        drop_na(!!bar_group_sym) |> 
-        
-        summarise(.by = c(!!bar_group_sym), 
-                  n_flights = n(), 
-                  distance_km = sum(distance_km), 
-                  distance_miles = sum(distance_miles), 
-                  gross_amount = sum(gross_amount),
-                  emission = round(digits = 1, sum(emission))
-        ) |> 
-        
-        mutate(label = fmt_n(!!bar_var_sym), 
-               percent = scales::percent(!!bar_var_sym/sum(!!bar_var_sym), accuracy = .1 )) |> 
-        
-        rename("group_var" = input$bar_group ) |> 
-        
+      hc_df <- amex_ready() %>%
+        # filter out Nas for group var
+        drop_na(!!bar_group_sym) %>%
+        summarise(
+          .by = c(!!bar_group_sym),
+          n_flights = n(),
+          distance_km = sum(distance_km),
+          distance_miles = sum(distance_miles),
+          gross_amount = sum(gross_amount),
+          emission = round(digits = 1, sum(emission))
+        ) %>%
+        mutate(
+          label = fmt_n(!!bar_var_sym),
+          percent = scales::percent(!!bar_var_sym / sum(!!bar_var_sym), accuracy = .1)
+        ) %>%
+        rename("group_var" = input$bar_group) %>%
         arrange(desc(!!bar_var_sym))
       
-      hchart(hc_df, 
-             "column", 
-             hcaes(x = group_var, 
-                   y = !!bar_var_sym)) |> 
-        
-        hc_yAxis(title = list(text = names(display_var[display_var == input$bar_var]) )) |> 
-        hc_xAxis(title = list(text = names(bar_group[bar_group == input$bar_group]) )) |> 
-        hc_tooltip(useHTML = TRUE,
-                   formatter = JS("
-    function(){
-    outHTML =  '<i>' + this.point.group_var + '</i> <br> <b>' + this.point.label + ' (' + this.point.percent + ')</b>' 
-     return(outHTML)
-     
-     }") ) |> 
-        
-        hc_chart(inverted=TRUE)
-      
+      hchart(
+        hc_df,
+        "column",
+        hcaes(
+          x = group_var,
+          y = !!bar_var_sym
+        )
+      ) %>%
+        hc_yAxis(title = list(text = names(display_var[display_var == input$bar_var]))) %>%
+        hc_xAxis(title = list(text = names(bar_group[bar_group == input$bar_group]))) %>%
+        hc_tooltip(
+          useHTML = TRUE,
+          formatter = JS("
+          function(){
+          outHTML =  '<i>' + this.point.group_var + '</i> <br> <b>' + this.point.label + ' (' + this.point.percent + ')</b>'
+          return(outHTML)
+          }")
+        ) %>%
+        hc_chart(inverted = TRUE)
     })
     
     # GEO TABLE ==========================================
     
     output$table <- renderReactable({
-      
-      geo_tab <- amex_ready() |> 
-        summarise(.by = dest_city_name, 
-                  n_flights = n(), 
-                  emission = sum(emission), 
-                  main_org = org[max(n())]
-                  
-        ) |>
-        
-        mutate(emission_pct = scales::percent(emission / sum(emission)), 
-               emission = fmt_n(emission), 
-               emission = paste0(emission, " (", emission_pct, ")")) |> 
-        
-        select(-emission_pct) |> 
-        
-        arrange(desc(n_flights)) |> 
-        
+      geo_tab <- amex_ready() %>%
+        summarise(
+          .by = dest,
+          n_flights = n(),
+          emission = sum(emission),
+          main_org = org[max(n())]
+        ) %>%
+        mutate(
+          emission_pct = scales::percent(emission / sum(emission)),
+          emission = fmt_n(emission),
+          emission = paste0(emission, " (", emission_pct, ")")
+        ) %>%
+        select(-emission_pct) %>%
+        arrange(desc(n_flights)) %>%
         head(n = 20)
       
-      reactable(geo_tab, 
+      reactable(geo_tab,
                 highlight = TRUE,
                 searchable = TRUE,
                 compact = TRUE,
                 defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
                 columns = list(
                   dest = colDef("Destination", align = "left"),
-                  n_flights = colDef("N Flights"), 
-                  emission = colDef("Emissions (tCO2e)"), 
-                  main_org = colDef("Main organisation") 
-                ) )
-      
-    }
-    )
-    
-    # Map ==================================================
-    df_origin <- reactive({
-      amex_ready() |>
-        summarise(
-          .by = ori_city_name,
-          ori_lon = mean(ori_city_lon, na.rm = TRUE),
-          ori_lat = mean(ori_city_lat, na.rm = TRUE),
-          n = n()
-        ) |> 
-        tidyr::drop_na()
+                  n_flights = colDef("N Flights"),
+                  emission = colDef("Emissions (tCO2e)"),
+                  main_org = colDef("Main organisation")
+                )
+      )
     })
     
-    df_destination <- reactive({
-      amex_ready() |>
-        summarise(
-          .by = dest_city_name,
-          dest_lon = mean(dest_city_lon, na.rm = TRUE),
-          dest_lat = mean(dest_city_lat, na.rm = TRUE),
-          n = n()
-        ) |> 
-        tidyr::drop_na()
-    })
-    
-    output$map <- leaflet::renderLeaflet({
-      leaflet::leaflet() |>
-        leaflet::setView(0, 10, zoom = 2) |>
-        leaflet::addMapPane(name = "circles", zIndex = 410) |>
-        leaflet::addMapPane(name = "place_labels", zIndex = 450) |>
-        leaflet::addProviderTiles("CartoDB.Positron", group = "Light") |>
-        # leaflet::addProviderTiles("OpenStreetMap", group = "OSM") |>
-        leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) |>
-        leaflet.extras::addFullscreenControl(position = "topleft") |>
-        leaflet.extras::addResetMapButton() |>
-        leaflet::addLayersControl(
-          baseGroups = c("Origin", "Destination"),
-          position = "topright",
-          options = layersControlOptions(collapsed = FALSE)
-        ) |> 
-        leaflet::addCircleMarkers(
-          data = df_origin(),
-          lng = ~ori_lon,
-          lat = ~ori_lat,
-          radius = ~ calc_radius(n),
-          fillColor = "steelblue",
-          fillOpacity = 0.8,
-          weight = 1,
-          color = "#FFFFFF",
-          label = ~ paste(ori_city_name, n, "flights"),
-          group = "Origin",
-          options = leaflet::pathOptions(pane = "circles")
-        ) |>
-        leaflet::addCircleMarkers(
-          data = df_destination(),
-          lng = ~dest_lon,
-          lat = ~dest_lat,
-          radius = ~ calc_radius(n),
-          fillColor = "red",
-          fillOpacity = 0.8,
-          weight = 1,
-          color = "#FFFFFF",
-          label = ~ paste(dest_city_name, n, "flights"),
-          group = "Destination",
-          options = leaflet::pathOptions(pane = "circles")
-        )
-    })
-    
-    # observe({
-    #   leaflet::leafletProxy("map", session, data = df_origin()) |>
-    #     leaflet::addCircleMarkers(
-    #       lng = ~ori_lon,
-    #       lat = ~ori_lat,
-    #       radius = ~ calc_radius(n),
-    #       fillColor = "steelblue",
-    #       fillOpacity = 0.8,
-    #       weight = 1,
-    #       color = "#FFFFFF",
-    #       label = ~ paste(n, "flights"),
-    #       group = "Origin",
-    #       options = leaflet::pathOptions(pane = "circles")
-    #     )
-    # })
-    
-    # observe({
-    #   leaflet::leafletProxy("map", session, data = df_destination()) |>
-    #     leaflet::addCircleMarkers(
-    #       lng = ~dest_lon,
-    #       lat = ~dest_lat,
-    #       radius = ~ calc_radius(n),
-    #       fillColor = "red",
-    #       fillOpacity = 0.8,
-    #       weight = 1,
-    #       color = "#FFFFFF",
-    #       label = ~ paste(n, "flights"),
-    #       group = "Destination",
-    #       options = leaflet::pathOptions(pane = "circles")
-    #     )
-    # })
-    
-    # Download  ==================================================
-    
+    # # Download  ==================================================
     output$download <- downloadHandler(
-      
       filename = function() {
-        
-        dates <- paste( input$date_range[1], input$date_range[2], sep = "-")
-        org <- if(length(input$select_org) ) {"_filtered-org"} else { "_All-org" }
-        
-        paste0("amex_data_",dates, org, ".csv")
+        dates <- paste(input$date_range[1], input$date_range[2], sep = "-")
+        org <- if (length(input$select_org)) {
+          "_filtered-org"
+        } else {
+          "_All-org"
+        }
+        paste0("amex_data_", dates, org, ".csv")
       },
-      
       content = function(file) {
-        
         write.csv(amex_ready(), file)
       }
-    ) 
-  }
-  )
+    )
+  })
 }
