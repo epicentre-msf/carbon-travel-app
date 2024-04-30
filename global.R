@@ -8,7 +8,7 @@ library(highcharter)
 library(reactable)
 library(leaflet)
 
-source(here::here("R", "set_paths.R"))
+#source(here::here("R", "set_paths.R"))
 source(here::here("R", "utils_labels.R"))
 source(here::here("R", "utils.R"))
 source(here::here("R", "utils_hc.R"))

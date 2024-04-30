@@ -362,11 +362,12 @@ mod_amex_server <- function(id,
     
     # Ratio table  ===========================================
     
+    # Map  ===========================================
     
     df_origin <- reactive({
       amex_ready() %>%
         summarise(
-          .by = ori_city,
+          .by = ori_city_code,
           ori_lon = mean(ori_lon, na.rm = TRUE),
           ori_lat = mean(ori_lat, na.rm = TRUE),
           n = n()
@@ -377,7 +378,7 @@ mod_amex_server <- function(id,
     df_destination <- reactive({
       amex_ready() %>%
         summarise(
-          .by = dest_city,
+          .by = dest_city_code,
           dest_lon = mean(dest_lon, na.rm = TRUE),
           dest_lat = mean(dest_lat, na.rm = TRUE),
           n = n()
@@ -409,7 +410,7 @@ mod_amex_server <- function(id,
           fillOpacity = 0.8,
           weight = 1,
           color = "#FFFFFF",
-          label = ~ paste(ori_city, n, "flights"),
+          label = ~ paste(ori_city_code, n, "flights"),
           group = "Origin",
           options = leaflet::pathOptions(pane = "circles")
         ) %>%
@@ -422,43 +423,11 @@ mod_amex_server <- function(id,
           fillOpacity = 0.8,
           weight = 1,
           color = "#FFFFFF",
-          label = ~ paste(dest_city, n, "flights"),
+          label = ~ paste(dest_city_code, n, "flights"),
           group = "Destination",
           options = leaflet::pathOptions(pane = "circles")
         )
     })
-    
-    # observe({
-    #   leaflet::leafletProxy("map", session, data = df_origin()) %>%
-    #     leaflet::addCircleMarkers(
-    #       lng = ~ori_lon,
-    #       lat = ~ori_lat,
-    #       radius = ~ calc_radius(n),
-    #       fillColor = "steelblue",
-    #       fillOpacity = 0.8,
-    #       weight = 1,
-    #       color = "#FFFFFF",
-    #       label = ~ paste(n, "flights"),
-    #       group = "Origin",
-    #       options = leaflet::pathOptions(pane = "circles")
-    #     )
-    # })
-    
-    # observe({
-    #   leaflet::leafletProxy("map", session, data = df_destination()) %>%
-    #     leaflet::addCircleMarkers(
-    #       lng = ~dest_lon,
-    #       lat = ~dest_lat,
-    #       radius = ~ calc_radius(n),
-    #       fillColor = "red",
-    #       fillOpacity = 0.8,
-    #       weight = 1,
-    #       color = "#FFFFFF",
-    #       label = ~ paste(n, "flights"),
-    #       group = "Destination",
-    #       options = leaflet::pathOptions(pane = "circles")
-    #     )
-    # })
     
     # Time-Series ===========================================
     
@@ -675,7 +644,7 @@ mod_amex_server <- function(id,
     output$table <- renderReactable({
       geo_tab <- amex_ready() %>%
         summarise(
-          .by = dest,
+          .by = c(dest_city_name),
           n_flights = n(),
           emission = sum(emission),
           main_org = org[max(n())]
@@ -695,7 +664,7 @@ mod_amex_server <- function(id,
                 compact = TRUE,
                 defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
                 columns = list(
-                  dest = colDef("Destination", align = "left"),
+                  dest_city_name = colDef("Destination", align = "left"),
                   n_flights = colDef("N Flights"),
                   emission = colDef("Emissions (tCO2e)"),
                   main_org = colDef("Main organisation")
