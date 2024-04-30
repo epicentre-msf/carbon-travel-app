@@ -72,6 +72,18 @@ mod_amex_ui <- function(id) {
       
       layout_column_wrap(width = 1 / 2,
                          
+                         bslib::card(
+                           full_screen = FALSE,
+                           bslib::card_header(
+                             class = "d-flex align-items-center",
+                             
+                             "Emisions ratios"),
+                           title =  "Emisions ratios",
+                           
+                           reactableOutput(ns("ratio_tab"))
+                           
+                         ),
+                         
                          navset_card_tab(
                            full_screen = TRUE,
                            wrapper = \(...) {
@@ -315,7 +327,7 @@ mod_amex_server <- function(id,
         arrange(desc(n))
       
       dat_summ <- amex_ready() |>
-
+        
         summarise(
           n_flight = frmt_num( n()),
           n_segment = nrow(main_segment), 
@@ -365,6 +377,13 @@ mod_amex_server <- function(id,
       
       paste(amex_summary()$emission_km, "tCO2e per Km")
     })
+    
+
+    # Ratio table  ===========================================
+    
+    
+
+    
     
     # Time-Series ===========================================
     

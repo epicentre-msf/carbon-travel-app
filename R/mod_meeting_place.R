@@ -19,7 +19,7 @@ mod_meeting_place_server <- function(id,
     
     dest_fil <- reactive( {
       
-      browser()
+      #browser()
       
       msf_type <- paste(input$msf_type_select, collapse = "|")
       

@@ -2,6 +2,11 @@ mod_origin_input_ui <- function(id) {
   ns <- NS(id)
   tagList(
     shinyjs::useShinyjs(),
+    
+    h4("Origins"),
+    
+    hr(),
+    
     div(
       id = ns("inputs"),
       city_input(
@@ -35,20 +40,29 @@ mod_origin_input_ui <- function(id) {
       ) %>% tooltip("Add another location", placement = "top")
     ),
     
+    h4("Destinations"),
+    
+    hr(),
+    
     div( 
-      div(shinyWidgets::radioGroupButtons(
+      div(
         
-        inputId = ns("msf_all"), 
-        label = "All destinations or only MSF ?", 
-        choices = c("All" = "all", 
-                    "MSF" = "msf"), 
-        size = "normal", 
-        selected = "all",
-        justified = TRUE
-      )
+        id = ns("msf_all"), 
+        
+        shinyWidgets::radioGroupButtons(
+          inputId = ns("msf_all"), 
+          label = "All destinations or only MSF ?", 
+          choices = c("All" = "all", 
+                      "MSF" = "msf"), 
+          size = "normal", 
+          selected = "all",
+          justified = TRUE
+        )
       ),
       
       div(
+        id =  ns("msf_type_select"),
+        
         shinyWidgets::pickerInput(
           inputId = ns("msf_type_select"), 
           label = "MSF type", 
@@ -71,6 +85,8 @@ mod_origin_input_ui <- function(id) {
         )
       )
     ),
+    
+    hr(),
     
     div(
       actionButton(ns("go"), "Get meeting places", width = "100%", class = "btn-primary"), 
@@ -164,8 +180,6 @@ mod_origin_input_server <- function(id, cities) {
     #   }
     #   
     # })
-    
-    
     
     df_origin <- reactive({
       #index <- input$add + 2

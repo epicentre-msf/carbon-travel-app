@@ -36,7 +36,7 @@ sharepoint_path <- paths$sharepoint_path
 raw_path <- here::here(sharepoint_path, "Maelle CHARRIER - TOOL", "data", "raw")
 clean_path <- here::here("data", "clean")
 
-# Import data ------------------------
+#Import data  -------------------------------------------------------------
 
 # country_codes
 country_codes <- import(fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "Data", "country_codes.xlsx")) %>%
@@ -318,3 +318,21 @@ df_amex_clean_lon_lat <- df_amex_clean_lon_lat |>
              dest_country_code), .after = ori_country_code) 
 
 write_rds(df_amex_clean_lon_lat, fs::path(clean_path, "amex_clean_lon_lat.rds"))
+
+amex_clean <- amex_clean %>% 
+  mutate(distance_km_cat = case_when(distance_km < 1000 ~ "short", 
+                                     between(distance_km, 1000, 3499) ~ "medium", 
+                                     distance_km  > 3499 ~ "long"), 
+         
+         coe2_fct = case_when(distance_km_cat == "short" ~ 0.25858, 
+                              distance_km_cat == "medium" ~ 0.18746, 
+                              distance_km_cat == "long" ~ 0.15196
+         ), 
+         emission = round((distance_km * coe2_fct)/1000, 2),
+         ori = str_to_sentence(ori), 
+         dest = str_to_sentence(dest), 
+         flight_type = str_to_sentence(flight_type)) 
+
+# Export data -------------------------------------------------------------
+
+export(amex_clean, fs::path(clean_path, "amex_clean.rds"))
