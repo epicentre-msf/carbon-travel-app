@@ -143,7 +143,7 @@ amex_clean <- amex %>%
   filter(!str_detect(carrier, "rail")) |>
   arrange(ticket_number) %>%
   select(-c(
-    traveler_name,
+    #traveler_name,
     ticket_number,
     reason_code,
     contains("customer_defined"),
