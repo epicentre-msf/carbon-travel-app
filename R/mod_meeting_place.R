@@ -1,48 +1,98 @@
 mod_meeting_place_ui <- function(id) {
   ns <- NS(id)
-  tagList(
-    gt::gt_output(ns("tbl"))
+  nav_panel(
+    "Meeting Place Planner",
+    layout_sidebar(
+      fillable = TRUE,
+      sidebar = sidebar(
+        width = 300,
+        gap = 0,
+        mod_origin_input_ui(ns("origin")),
+        h4("Destinations"),
+        hr(),
+        shinyWidgets::radioGroupButtons(
+          inputId = ns("msf_all"),
+          label = "All destinations or only MSF ?",
+          choices = c("All" = "all", "MSF" = "msf"),
+          size = "sm",
+          selected = "all",
+          justified = TRUE
+        ),
+        shinyWidgets::pickerInput(
+          inputId = ns("msf_type_select"),
+          label = "MSF type",
+          multiple = TRUE,
+          choices = msf_type_vec,
+          selected = msf_type_vec
+        ),
+        shinyWidgets::virtualSelectInput(
+          inputId = ns("select_dest"),
+          label = tooltip(
+            span("Destinations", bsicons::bs_icon("info-circle")),
+            "Select all possible destinations for a meeting"
+          ),
+          choices = NULL,
+          multiple = TRUE,
+          search = TRUE,
+          autoSelectFirstOption = TRUE,
+          placeholder = "Select cities...",
+          position = "bottom",
+          dropboxWrapper = "body",
+          showOptionsOnlyOnSearch = FALSE,
+          optionsCount = 5
+        ),
+        hr(),
+        actionButton(ns("go"), "Get meeting places", width = "100%", class = "btn-primary")
+      ),
+      gt::gt_output(ns("tbl"))
+    )
   )
 }
 
 mod_meeting_place_server <- function(id,
                                      mat,
                                      air_msf,
-                                     df_conversion,
-                                     df_origin
-) {
+                                     df_conversion) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    
+
+    df_origin <- mod_origin_input_server("origin", orig_cities)
+
     # Filter the destinations to map on, this will also update choices for destination selector
-    
-    
-    dest_fil <- reactive( {
-      
+    dest_fil <- reactive({
       msf_type <- paste(input$msf_type_select, collapse = "|")
-      
-      if(input$msf_all == "msf") {
-        
-        dest |> filter(msf) |> filter(str_detect(msf_type, pattern = msf_type() )) 
-        
+      if (input$msf_all == "msf") {
+        dest |>
+          filter(msf) |>
+          filter(str_detect(msf_type, pattern = msf_type()))
       } else {
-        
-        dest |> filter( str_detect(msf_type, pattern = msf_type() )) 
+        dest # |> filter( str_detect(msf_type, pattern = msf_type ))
       }
-      
-    } )
-    
+    })
+
+    observe({
+      choices <- dest_fil() |>
+        shinyWidgets::prepare_choices(
+          label = city_name,
+          value = city_code,
+          group_by = country_name
+        )
+      shinyWidgets::updateVirtualSelect("select_dest", choices = choices)
+    })
+
     df_dists <- reactive({
-      
       req(df_origin())
       ntf <- showNotification("Calculating optimal meeting locations", duration = NULL)
       on.exit(removeNotification(ntf))
-      
-      # Map the function over all possible destinations 
+
+      dest_cities <- dest_fil()$city_code
+      if (length(input$select_dest)) {
+        dest_cities <- dest_cities[dest_cities %in% input$select_dest]
+      }
+      # Map the function over all possible destinations
       all_dest <- purrr::map(
-        
-        #the desired destinations - for now include all of them. Add filters to this if you wish
-        dest_fil()$city_code,
+        # the desired destinations - for now include all of them. Add filters to this if you wish
+        dest_cities,
         ~ get_dest_tot(
           df_origin(),
           destination = .x,
@@ -50,34 +100,37 @@ mod_meeting_place_server <- function(id,
           dist_mat = mat
         )
       )
-      #name the lists elements
-      names(all_dest) <- dest_fil()$city_code
-      
+      # name the lists elements
+      names(all_dest) <- dest_cities
+
       # Bind the grand totals together arrange and display
-      grand_tot <- purrr::map(dest_fil()$city_code, 
-                              ~ all_dest[[.x]]$total) |> 
-        bind_rows() |> 
-        arrange(grand_tot_emission) |> 
-        mutate(rank = row_number()) |> 
-        relocate(rank, 1) |> 
-        left_join(select(dest_fil(),
-                         city_code,
-                         city_name,
-                         country_name
-        ), 
-        by = c("name_dest" = "city_code")) |> 
-        
-        select(rank, 
-               city_name, 
-               country_name, 
-               grand_tot_km,
-               grand_tot_emission,
-               oc,
-               msf_type
+      grand_tot <- purrr::map(
+        dest_cities,
+        ~ all_dest[[.x]]$total
+      ) |>
+        bind_rows() |>
+        arrange(grand_tot_emission) |>
+        mutate(rank = row_number()) |>
+        relocate(rank, 1) |>
+        left_join(select(
+          dest_fil(),
+          city_code,
+          city_name,
+          country_name
+        ),
+        by = c("name_dest" = "city_code")
+        ) |>
+        select(
+          rank,
+          city_name,
+          country_name,
+          grand_tot_km,
+          grand_tot_emission,
+          oc,
+          msf_type
         )
-      
-    })
-    
+    }) %>% bindEvent(input$go)
+
     #   all_dist <- purrr::map(
     #     dest_list,
     #     ~ get_dest_tot(
@@ -101,14 +154,14 @@ mod_meeting_place_server <- function(id,
     #     separate(destination, c("Country", "City"), "-") %>%
     #     mutate(across(c(Country, City), str_to_title))
     # })
-    
+
     output$tbl <- gt::render_gt({
       req(df_dists())
       df_dists() %>%
-        #add a filter to number of row to show - reactable ?
+        # add a filter to number of row to show - reactable ?
         head(n = 10) %>%
         gt() %>%
-        tab_header(title = "Optimal Meeting Locations") %>% 
+        tab_header(title = "Optimal Meeting Locations") %>%
         data_color(
           columns = grand_tot_emission,
           method = "numeric",
@@ -121,8 +174,8 @@ mod_meeting_place_server <- function(id,
         ) %>%
         cols_label(
           rank ~ "Rank",
-          city_name ~"City name", 
-          country_name ~"Country name",
+          city_name ~ "City name",
+          country_name ~ "Country name",
           grand_tot_km ~ "Total distance (km)",
           grand_tot_emission ~ "Total CO2 emissions (CO2e)",
           oc ~ "OC",
@@ -141,20 +194,18 @@ mod_meeting_place_server <- function(id,
 }
 
 # Function to retrieve the distance/emissions/path to a destination
-# gives a grand total df and the details df 
+# gives a grand total df and the details df
 
 get_dest_tot <- function(df_origin,
                          destination,
                          df_conversion,
                          dist_mat) {
-  
   distances <- unname(dist_mat[df_origin$origin_id, destination])
-  
+
   df_details <- df_origin |>
-    
     mutate(
       name_dest = destination,
-      #path = purrr::map2_chr(origin_id, destination, ~ paste(sfnetworks::st_network_paths(net, from = .x, to = .y )$node_paths[[1]], collapse = "-")),
+      # path = purrr::map2_chr(origin_id, destination, ~ paste(sfnetworks::st_network_paths(net, from = .x, to = .y )$node_paths[[1]], collapse = "-")),
       distance_km = distances,
       total_distance_km = n_participant * distance_km,
       distance_cat = case_when(
@@ -171,18 +222,20 @@ get_dest_tot <- function(df_origin,
       trip_emissions = round(digits = 3, distance_km * emissions_factor),
       total_emissions = n_participant * trip_emissions
     )
-  
+
   grand_df <- df_details |>
     group_by(name_dest) |>
     summarise(
       grand_tot_km = sum(total_distance_km),
       grand_tot_emission = sum(total_emissions)
     )
-  
-  ls <- list(details = df_details, 
-             total = grand_df)
-  
+
+  ls <- list(
+    details = df_details,
+    total = grand_df
+  )
+
   return(ls)
-  
+
   names(ls) <- destination
 }

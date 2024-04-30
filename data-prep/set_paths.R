@@ -31,6 +31,24 @@ set_paths <- function() {
   
 }
 
+get_sp_data_path <- function() {
+  user <- Sys.info()[["user"]]
+  if (user == "paul") {
+    fs::path(
+      Sys.getenv("SHAREPOINT_PATH"),
+      "Maelle CHARRIER - Carbon-travel-App",
+      "Data"
+    )
+  # add your user here
+  } else {
+    fs::path(
+      Sys.getenv("SHAREPOINT_PATH"),
+      "Maelle CHARRIER - TOOL",
+      "Data"
+    )
+  }
+}
+
 #paths <- set_paths()
 
 # set_paths <- function(info = Sys.info()) {

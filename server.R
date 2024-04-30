@@ -15,13 +15,12 @@ server <- function(input, output, session) {
     )
   }
   
-  df_origin <- mod_origin_input_server("origin", cities)
-  
   mod_meeting_place_server(
     id = "mp",
     mat, 
     air_msf,
     df_conversion,
+    orig_cities,
     df_origin
   )
   

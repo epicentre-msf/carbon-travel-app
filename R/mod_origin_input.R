@@ -38,54 +38,6 @@ mod_origin_input_ui <- function(id) {
         "+",
         class = "btn-info btn-sm"
       ) %>% tooltip("Add another location", placement = "top")
-    ),
-    
-    h4("Destinations"),
-    
-    hr(),
-    
-    div( 
-      div(
-        shinyWidgets::radioGroupButtons(
-          inputId = ns("msf_all"), 
-          label = "All destinations or only MSF ?", 
-          choices = c("All" = "all", 
-                      "MSF" = "msf"), 
-          size = "normal", 
-          selected = "all",
-          justified = TRUE
-        )
-      ),
-      
-      div(
-        shinyWidgets::pickerInput(
-          inputId = ns("msf_type_select"), 
-          label = "MSF type", 
-          multiple = TRUE,
-          choices = msf_type_vec,
-          selected = msf_type_vec
-        )
-      ),
-      
-      div(
-        id = ns("dest_select"),
-        
-        dest_input(
-          ns,
-          dest_lab = tooltip(
-            span("Destinations", 
-                 bsicons::bs_icon("info-circle")),
-            "Select all possible destinations for a meeting"
-          )
-        )
-      )
-    ),
-    
-    hr(),
-    
-    div(
-      actionButton(ns("go"), "Get meeting places", width = "100%", class = "btn-primary"), 
-      
     )
   )
 }
@@ -97,18 +49,15 @@ mod_origin_input_server <- function(id, cities) {
     # set this to number of inputs you starts with
     n_inputs <- reactiveVal(2)
     
+    # only enable remove option when number of inputs is > 2
     observe({
       n <- n_inputs()
       shinyjs::toggleState("remove", condition = n > 2)
     })
     
     observe({
-      shinyWidgets::updateVirtualSelect("p1", 
-                                        choices = cities, 
-                                        selected = "PAR")
-      shinyWidgets::updateVirtualSelect("p2", 
-                                        choices = cities, 
-                                        selected = "LON")
+      shinyWidgets::updateVirtualSelect("p1", choices = cities, selected = "PAR")
+      shinyWidgets::updateVirtualSelect("p2", choices = cities, selected = "LON")
     })
     
     observeEvent(input$add, {
@@ -133,14 +82,6 @@ mod_origin_input_server <- function(id, cities) {
     })
     
     #Destinations filters 
-    
-    cities <- dest |>
-      
-      shinyWidgets::prepare_choices(
-        label = city_name,
-        value = city_code,
-        group_by = country_name
-      )
     
     # observe(input$msf_all, { 
     #   
@@ -186,7 +127,7 @@ mod_origin_input_server <- function(id, cities) {
         origin_id = selected_cities,
         n_participant = n_people
       ) %>% dplyr::filter(origin_id != "", !is.na(n_participant))
-    }) %>% bindEvent(input$go, ignoreInit = TRUE)
+    }) # %>% bindEvent(input$go, ignoreInit = TRUE)
     
     # return city df
     reactive(df_origin())
@@ -233,31 +174,6 @@ city_input <- function(ns,
   )
 }
 
-dest_input <- function(ns,
-                       choices = NULL,
-                       selected = NULL,
-                       dest_lab = NULL) {
-  
-  div(
-    class = "d-flex p-0 justify-content-center",
-    div(
-      class = "p-0 flex-grow-1",
-      shinyWidgets::virtualSelectInput(
-        inputId = ns("select_dest"),
-        label = dest_lab,
-        choices = choices,
-        selected = selected,
-        search = TRUE,
-        autoSelectFirstOption = TRUE,
-        placeholder = "Select city...",
-        position = "bottom",
-        dropboxWrapper = "body",
-        showOptionsOnlyOnSearch = FALSE,
-        optionsCount = 5
-      )
-    )
-  ) 
-}
 
 
 

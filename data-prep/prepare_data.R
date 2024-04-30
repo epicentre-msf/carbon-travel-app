@@ -34,11 +34,7 @@ source(here::here("R", "utils.R"))
 
 # Set paths -------------------------------------------------------------
 
-path_data <- fs::path(
-  Sys.getenv("SHAREPOINT_PATH"),
-  "Maelle CHARRIER - TOOL",
-  "Data"
-)
+path_data <- get_sp_data_path()
 
 fs::dir_create("data", "clean")
 raw_path <- fs::path(path_data, "raw")

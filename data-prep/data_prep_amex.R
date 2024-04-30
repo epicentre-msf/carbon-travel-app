@@ -32,14 +32,13 @@ source(here::here("R", "utils.R"))
 paths <- set_paths()
 
 sharepoint_path <- paths$sharepoint_path
-
-raw_path <- here::here(sharepoint_path, "Maelle CHARRIER - TOOL", "data", "raw")
+data_path <- get_sp_data_path()
+raw_path <- fs::path(data_path, "raw")
 clean_path <- here::here("data", "clean")
-
 #Import data  -------------------------------------------------------------
 
 # country_codes
-country_codes <- import(fs::path(sharepoint_path, "Maelle CHARRIER - TOOL", "Data", "country_codes.xlsx")) %>%
+country_codes <- import(fs::path(data_path, "country_codes.xlsx")) %>%
   clean_names() %>%
   rename(mission_name = name) %>%
   as_tibble()
