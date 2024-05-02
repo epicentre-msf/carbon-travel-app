@@ -109,7 +109,7 @@ get_dest_tot <- function(df_origin,
 
 # Fake dataset of origins 
 ori_df <- data.frame(
-  origin_id = c("LON", "PAR", "BOY", "GVA", "BCN"),
+  origin_id = c("GVA", "PAR", "BRU", "LON", "AMS"),
   n_participant = c(2, 2, 3, 4, 5)
 )
 
@@ -225,10 +225,9 @@ edges <- net |> activate("edges") |> slice(short_edges) |> st_as_sf()
 mapview::mapview(nodes) +
   mapview::mapview(edges)
 
-leaflet::leaflet() |>
-  leaflet::setView(0, 10, zoom = 2) |>
-  leaflet::addMapPane(name = "circles", zIndex = 410) |>
-  leaflet::addMapPane(name = "place_labels", zIndex = 450) |>
+pal <- colorFactor(c("darkred", "steelblue"), c("destination", "origin"))
+
+leaflet::leaflet() |> 
   leaflet::addProviderTiles("CartoDB.Positron", group = "Light") |>
   leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) |>
   leaflet.extras::addFullscreenControl(position = "topleft") |>
@@ -238,17 +237,14 @@ leaflet::leaflet() |>
     lng = ~lon,
     lat = ~lat,
     radius = 7, 
-    fillColor = ~ ifelse(type == "destination", "darkred", "steelblue"),
+    fillColor = ~ pal(type),
     color = ~ "white",
     fillOpacity = 0.8,
     weight = 1,
-    label = ~ city_name,
-    options = leaflet::pathOptions(pane = "circles")
+    label = ~ city_name
   ) |> 
-  leaflet::addPolylines(data = edges) 
-
-  # 
-  # addLegend("topright",
-  #           values = unique(nodes$type),
-  #           colors = c("darkred", "steelblue")
-  # )
+  leaflet::addPolylines(data = edges) |> 
+  
+  addLegend(position = "topright",
+            pal = pal, 
+            values = unique(nodes$type))

@@ -28,7 +28,10 @@ mod_meeting_place_ui <- function(id) {
         shinyWidgets::virtualSelectInput(
           inputId = ns("select_dest"),
           label = tooltip(
-            span("Destinations", bsicons::bs_icon("info-circle")),
+            span(
+              "Destinations",
+              bsicons::bs_icon("info-circle")
+            ),
             "Select all possible destinations for a meeting"
           ),
           choices = NULL,
@@ -44,26 +47,26 @@ mod_meeting_place_ui <- function(id) {
         hr(),
         actionButton(ns("go"), "Get meeting places", width = "100%", class = "btn-primary")
       ),
-      
       bslib::card(
         full_screen = TRUE,
         bslib::card_header(
-          class = "d-flex align-items-center", 
+          class = "d-flex align-items-center",
           "Optimal Meeting locations"
         ),
-        min_height="550px",
+        min_height = "550px",
         reactableOutput(ns("tbl"))
       ),
       bslib::card(
         bslib::card_header(
-          class = "d-flex align-items-center", 
-          "Map of travels", 
-          
+          class = "d-flex align-items-center",
+          "Map of travels",
           shinyWidgets::virtualSelectInput(
             inputId = ns("map_dest"),
             label = tooltip(
-              span("Optimal destination", 
-                   bsicons::bs_icon("info-circle")),
+              span(
+                "Optimal destination",
+                bsicons::bs_icon("info-circle")
+              ),
               "Select one of the optimal destinations to display"
             ),
             selected = 1,
@@ -77,9 +80,7 @@ mod_meeting_place_ui <- function(id) {
             optionsCount = 5
           )
         ),
-        
-        min_height="550px",
-        
+        min_height = "550px",
         leaflet::leafletOutput(ns("map"))
       )
     )
@@ -106,9 +107,9 @@ mod_meeting_place_server <- function(
         
         dest |>
           filter(msf) |>
-          filter(str_detect(msf_type, pattern = msf_type_select))
+          filter(str_detect(msf_type, pattern = msf_type_select)) 
       } else {
-        dest
+        dest 
       }
     })
     
@@ -122,12 +123,14 @@ mod_meeting_place_server <- function(
       shinyWidgets::updateVirtualSelect("select_dest", choices = choices)
     })
     
+    
     df_dists <- reactive({
       req(df_origin())
-      ntf <- showNotification("Calculating optimal meeting locations", duration = NULL, type = "message")
+      ntf <- showNotification("Calculating optimal meeting locations", duration = NULL, type = "warning")
       on.exit(removeNotification(ntf))
       
-      dest_cities <- dest_fil()$city_code
+      #final selection of destinations using the picket inputs
+      dest_cities <- dest_fil() |> filter(city_code %in% input$select_dest) |> pull(city_code)
       
       # Map the function over all possible destinations
       all_dest <- purrr::map(
@@ -158,7 +161,7 @@ mod_meeting_place_server <- function(
             dest_fil(),
             city_code,
             city_name,
-            city_lon, 
+            city_lon,
             city_lat,
             country_name,
             oc,
@@ -168,8 +171,8 @@ mod_meeting_place_server <- function(
         ) |>
         select(
           rank,
-          city_code = name_dest, 
-          city_lon, 
+          city_code = name_dest,
+          city_lon,
           city_lat,
           city_name,
           country_name,
@@ -180,49 +183,49 @@ mod_meeting_place_server <- function(
         )
     }) %>% bindEvent(input$go)
     
-    # Make a reactable 
+    # Make a reactable
     orange_pal <- function(x) rgb(colorRamp(c("#B8CCAD", "#BF6C67"))(x), maxColorValue = 255)
     
     output$tbl <- reactable::renderReactable({
-      
       req(df_dists())
       
-      df <- df_dists() |> select(-c(city_code, city_lon, city_lat)) |> head(50) 
+      df <- df_dists() |>
+        select(-c(city_code, city_lon, city_lat)) |>
+        head(50)
       
-      reactable(df,
-                highlight = TRUE,
-                searchable = TRUE,
-                compact = TRUE,
-                defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
-                columns = list(
-                  rank = colDef("Rank", align = "left", maxWidth = 50),
-                  city_name = colDef("City", align = "left", maxWidth = 150),
-                  country_name = colDef("Country", align = "left", maxWidth = 150),
-                  grand_tot_km = colDef("Total Km", align = "left", format = colFormat(digits = 0), maxWidth = 150),
-                  grand_tot_emission = colDef("Total Emissions (kg CO2e)", 
-                                              align = "left", 
-                                              format = colFormat(digits = 0 ),
-                                              maxWidth = 150,
-                                              style = function(value) {
-                                                normalized <- (value - min(df$grand_tot_emission)) / (max(df$grand_tot_emission) - min(df$grand_tot_emission))
-                                                color <- orange_pal(normalized)
-                                                list(background = color)
-                                              }
-                  ),
-                  oc = colDef("Operational Center", align = "left", maxWidth = 200),
-                  msf_type = colDef("MSF type", align = "left")
-                )
+      reactable(
+        df,
+        highlight = TRUE,
+        searchable = TRUE,
+        compact = TRUE,
+        defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
+        columns = list(
+          rank = colDef("Rank", align = "left", maxWidth = 50),
+          city_name = colDef("City", align = "left", maxWidth = 150),
+          country_name = colDef("Country", align = "left", maxWidth = 150),
+          grand_tot_km = colDef("Total Km", align = "left", format = colFormat(digits = 0), maxWidth = 150),
+          grand_tot_emission = colDef(
+            "Total Emissions (kg CO2e)",
+            align = "left",
+            format = colFormat(digits = 0),
+            maxWidth = 150,
+            style = if(nrow(df) >1) { function(value) {
+              normalized <- (value - min(df$grand_tot_emission)) / (max(df$grand_tot_emission) - min(df$grand_tot_emission) +1)
+              color <- orange_pal(normalized)
+              list(background = color)
+            } } else { background = "white" }
+          ),
+          oc = colDef("Operational Center", align = "left", maxWidth = 200),
+          msf_type = colDef("MSF type", align = "left")
+        )
       )
     })
     
-    
-    
     # Map  =========================================================================
     
-    #update choices of input 
+    # update choices of input
     
     observeEvent(df_dists(), {
-      
       choices <- df_dists() |>
         shinyWidgets::prepare_choices(
           label = city_name,
@@ -235,82 +238,61 @@ mod_meeting_place_server <- function(
     output$map <- leaflet::renderLeaflet({
       req(input$map_dest)
       
-      #origins
-      map_ori <- df_origin() |> left_join(dest, by = join_by(origin_id == city_code) )
+      pal <- colorFactor(c("darkred", "steelblue"), c("destination", "origin"))
       
-      #destination selected 
+      # origins
+      map_ori <- df_origin() |> left_join(dest, by = join_by(origin_id == city_code))
+      
+      # destination selected
       map_dest <- input$map_dest
-
-      #get the shortest path in network for all origin and this destination 
-      short_paths <- purrr::map(map_ori$origin_id, 
-                                ~ sfnetworks::st_network_paths(net, from = .x, to = map_dest))
       
-      short_nodes <- unique(unname(unlist(purrr::map( short_paths, ~ .x |> pull(node_paths) |> unlist() ))))
+      # get the shortest path in network for all origin and this destination
+      short_paths <- purrr::map(
+        map_ori$origin_id,
+        ~ sfnetworks::st_network_paths(net, from = .x, to = map_dest)
+      )
       
-      short_edges <- unname(unlist(purrr::map( short_paths, ~ .x |> pull(edge_paths) |> unlist() ) ) )
+      short_nodes <- unique(unname(unlist(purrr::map(short_paths, ~ .x |>
+                                                       pull(node_paths) |>
+                                                       unlist()))))
       
-      nodes <- net |> activate("nodes") |> filter(name %in% short_nodes) |> st_as_sf() |> mutate(type = if_else(name == map_dest, "destination", "origin"))
-      edges <- net |> activate("edges") |> slice(short_edges) |> st_as_sf()
+      short_edges <- unname(unlist(purrr::map(short_paths, ~ .x |>
+                                                pull(edge_paths) |>
+                                                unlist())))
+      
+      nodes <- net |>
+        activate("nodes") |>
+        filter(name %in% short_nodes) |>
+        st_as_sf() |>
+        mutate(type = if_else(name == map_dest, "destination", "origin"))
+      edges <- net |>
+        activate("edges") |>
+        slice(short_edges) |>
+        st_as_sf()
       
       leaflet::leaflet() |>
-        leaflet::setView(0, 10, zoom = 2) |>
-        leaflet::addMapPane(name = "circles", zIndex = 410) |>
-        leaflet::addMapPane(name = "place_labels", zIndex = 450) |>
         leaflet::addProviderTiles("CartoDB.Positron", group = "Light") |>
         leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) |>
         leaflet.extras::addFullscreenControl(position = "topleft") |>
-        leaflet.extras::addResetMapButton()  |>
+        leaflet.extras::addResetMapButton() |>
         leaflet::addCircleMarkers(
           data = nodes,
           lng = ~lon,
           lat = ~lat,
-          radius = 7, 
-          color = ~ "white",
+          radius = 7,
+          color = ~"white",
           fillOpacity = 0.8,
           weight = 1,
-          fillColor = ~ ifelse(type == "destination", "darkred", "steelblue"),
-          label = ~ city_name,
-          options = leaflet::pathOptions(pane = "circles")
-        ) |> 
-         leaflet::addPolylines(data = edges) #|> 
-        # 
-        # addLegend("topright",
-        #           opacity = 0.5,
-        #           title="Median Full Risk Premium", 
-        #           group="Median Full Risk Premium")
-      
-       
-      # leaflet::leaflet() %>%
-      #   leaflet::setView(0, 10, zoom = 2) %>%
-      #   leaflet::addMapPane(name = "circles", zIndex = 410) %>%
-      #   leaflet::addMapPane(name = "place_labels", zIndex = 450) %>%
-      #   leaflet::addProviderTiles("CartoDB.Positron", group = "Light") %>%
-      #   leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) %>%
-      #   leaflet.extras::addFullscreenControl(position = "topleft") %>%
-      #   leaflet.extras::addResetMapButton()  %>%
-      #   leaflet::addCircleMarkers(
-      #     data = map_dest,
-      #     lng = ~city_lon,
-      #     lat = ~city_lat,
-      #     fillColor = "darkred",
-      #     fillOpacity = 0.8,
-      #     weight = 1,
-      #     color = "#FFFFFF",
-      #     label = ~ city_name,
-      #     options = leaflet::pathOptions(pane = "circles")
-      #   ) |> 
-      #   leaflet::addCircleMarkers(
-      #     data = map_ori,
-      #     lng = ~city_lon,
-      #     lat = ~city_lat,
-      #     fillColor = "steelblue",
-      #     fillOpacity = 0.8,
-      #     weight = 1,
-      #     label = ~ city_name,
-      #     options = leaflet::pathOptions(pane = "circles")
-      #   )
-    })   
-    
+          fillColor = ~ pal(type),
+          label = ~city_name
+        ) |>
+        leaflet::addPolylines(data = edges) |>
+        addLegend(
+          position = "topright",
+          pal = pal,
+          values = unique(nodes$type)
+        )
+    })
   })
 }
 
