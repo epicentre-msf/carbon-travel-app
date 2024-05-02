@@ -109,9 +109,12 @@ get_dest_tot <- function(df_origin,
 
 # Fake dataset of origins 
 ori_df <- data.frame(
-  origin_id = c("LON", "PAR", "CHR", "GVA", "BCN"),
+  origin_id = c("LON", "PAR", "BOY", "GVA", "BCN"),
   n_participant = c(2, 2, 3, 4, 5)
 )
+
+dest_select <- dest |> filter(msf, str_detect(msf_type, "OC")) |> pull(city_code)
+
 
 #try with one destination 
 get_dest_tot(ori_df, 
@@ -121,7 +124,7 @@ get_dest_tot(ori_df,
 
 # Map the function over all possible destinations 
 all_dest <- purrr::map(
-  dest$city_code,
+  dest_select,
   ~ get_dest_tot(
     ori_df,
     .x,
@@ -130,10 +133,10 @@ all_dest <- purrr::map(
   )
 )
 
-names(all_dest) <- dest$city_code
+names(all_dest) <- dest_select
 
 # Bind the grand totals together arrange and display
-purrr::map(dest$city_code, ~ all_dest[[.x]]$total) |> 
+tbl <- purrr::map(dest$city_code, ~ all_dest[[.x]]$total) |> 
   bind_rows() |> 
   arrange(grand_tot_emission) |> 
   mutate(rank = row_number()) |> 
@@ -142,17 +145,110 @@ purrr::map(dest$city_code, ~ all_dest[[.x]]$total) |>
     select(
       dest, 
       city_code,
+      city_lon, city_lat,
       city_name,
       country_name, 
       msf, 
+      oc,
       msf_type
     ), 
     by = join_by(destination == city_code)
-  )
+  ) |> select(rank,
+              city_code = destination, 
+              city_lon, 
+              city_lat,
+              city_name,
+              country_name,
+              grand_tot_km,
+              grand_tot_emission,
+              oc,
+              msf_type)
 
-#CHECK DUPLICATED 
-# mat <- geosphere::distm(
-#   select(cities, lon, lat),
-#   select(cities, lon, lat),
-#   fun = geosphere::distHaversine
-# )
+# Make a reactable 
+
+orange_pal <- function(x) rgb(colorRamp(c("#B8CCAD", "#BF6C67"))(x), maxColorValue = 255)
+
+tbl_sub <- tbl |> select(rank,
+                         city_name,
+                         country_name,
+                         grand_tot_km,
+                         grand_tot_emission,
+                         oc,
+                         msf_type) |> head(50)
+
+
+reactable(tbl_sub,
+          highlight = TRUE,
+          searchable = TRUE,
+          compact = TRUE,
+          defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
+          columns = list(
+            rank = colDef("Rank", align = "left", minWidth = 30),
+            city_name = colDef("City", align = "left", minWidth = 80),
+            country_name = colDef("Country", align = "left", minWidth = 80),
+            grand_tot_km = colDef("Total Km", align = "left", format = colFormat(digits = 0), minWidth = 50),
+            grand_tot_emission = colDef("Total Emissions (kg CO2e)", 
+                                        align = "left", 
+                                        minWidth = 50,
+                                        format = colFormat(digits = 0, separators = TRUE), 
+                                        style = function(value) {
+                                          normalized <- (value - min(head(tbl, 50)$grand_tot_emission)) / (max(head(tbl, 50)$grand_tot_emission) - min(head(tbl, 50)$grand_tot_emission))
+                                          color <- orange_pal(normalized)
+                                          list(background = color)
+                                        }
+            ),
+            oc = colDef("Operational Center", align = "left", minWidth = 80),
+            msf_type = colDef("MSF type", align = "left")
+          )
+)
+
+# Make A leaflet map of the selected destinations 
+
+#origin df
+map_ori <- ori_df |> left_join(dest, by = join_by(origin_id == city_code) )
+
+#destination selected 
+map_dest <- "AMS"
+
+#get the shortest path in network for all origin and this destination 
+short_paths <- purrr::map(ori_df$origin_id, 
+                          ~ sfnetworks::st_network_paths(net, from = .x, to = map_dest))
+
+short_nodes <- unique(unname(unlist(purrr::map( short_paths, ~ .x |> pull(node_paths) |> unlist() ))))
+
+short_edges <- unname(unlist(purrr::map( short_paths, ~ .x |> pull(edge_paths) |> unlist() ) ) )
+
+nodes <- net |> activate("nodes") |> filter(name %in% short_nodes) |> st_as_sf() |> mutate(type = if_else(name == map_dest, "destination", "origin"))
+edges <- net |> activate("edges") |> slice(short_edges) |> st_as_sf()
+
+#quick map
+mapview::mapview(nodes) +
+  mapview::mapview(edges)
+
+leaflet::leaflet() |>
+  leaflet::setView(0, 10, zoom = 2) |>
+  leaflet::addMapPane(name = "circles", zIndex = 410) |>
+  leaflet::addMapPane(name = "place_labels", zIndex = 450) |>
+  leaflet::addProviderTiles("CartoDB.Positron", group = "Light") |>
+  leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) |>
+  leaflet.extras::addFullscreenControl(position = "topleft") |>
+  leaflet.extras::addResetMapButton()  |>
+  leaflet::addCircleMarkers(
+    data = nodes,
+    lng = ~lon,
+    lat = ~lat,
+    radius = 7, 
+    fillColor = ~ ifelse(type == "destination", "darkred", "steelblue"),
+    color = ~ "white",
+    fillOpacity = 0.8,
+    weight = 1,
+    label = ~ city_name,
+    options = leaflet::pathOptions(pane = "circles")
+  ) |> 
+  leaflet::addPolylines(data = edges) 
+
+  # 
+  # addLegend("topright",
+  #           values = unique(nodes$type),
+  #           colors = c("darkred", "steelblue")
+  # )

@@ -83,7 +83,7 @@ nodes <- net_dest |>
   sf::st_as_sf(coords = c("city_lon", "city_lat"), crs =4326) 
 
 #create the network
-net <- sfnetwork(nodes, edges, node_key = "city_code", edges_as_lines = TRUE, directed = FALSE)
+net <- sfnetwork(nodes, edges, node_key = "name", edges_as_lines = TRUE, directed = FALSE)
 
 # Plot the network 
 mapview::mapview( net |> activate("nodes") |> st_as_sf(),

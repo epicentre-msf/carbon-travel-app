@@ -44,37 +44,74 @@ mod_meeting_place_ui <- function(id) {
         hr(),
         actionButton(ns("go"), "Get meeting places", width = "100%", class = "btn-primary")
       ),
-      gt::gt_output(ns("tbl"))
+      
+      bslib::card(
+        full_screen = TRUE,
+        bslib::card_header(
+          class = "d-flex align-items-center", 
+          "Optimal Meeting locations"
+        ),
+        min_height="550px",
+        reactableOutput(ns("tbl"))
+      ),
+      bslib::card(
+        bslib::card_header(
+          class = "d-flex align-items-center", 
+          "Map of travels", 
+          
+          shinyWidgets::virtualSelectInput(
+            inputId = ns("map_dest"),
+            label = tooltip(
+              span("Optimal destination", 
+                   bsicons::bs_icon("info-circle")),
+              "Select one of the optimal destinations to display"
+            ),
+            selected = 1,
+            choices = NULL,
+            search = TRUE,
+            autoSelectFirstOption = TRUE,
+            placeholder = "Select city...",
+            position = "bottom",
+            dropboxWrapper = "body",
+            showOptionsOnlyOnSearch = FALSE,
+            optionsCount = 5
+          )
+        ),
+        
+        min_height="550px",
+        
+        leaflet::leafletOutput(ns("map"))
+      )
     )
   )
 }
 
-mod_meeting_place_server <- function(id,
-                                     mat,
-                                     air_msf,
-                                     df_conversion) {
+mod_meeting_place_server <- function(
+    id,
+    mat,
+    air_msf,
+    df_conversion
+) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
-
+    
     df_origin <- mod_origin_input_server("origin", orig_cities)
-
+    
     # Filter the destinations to map on, this will also update choices for destination selector
     dest_fil <- reactive({
-      
       req(input$msf_type_select)
-    
+      
       if (input$msf_all == "msf") {
-        
         msf_type_select <- paste(input$msf_type_select, collapse = "|")
         
         dest |>
           filter(msf) |>
           filter(str_detect(msf_type, pattern = msf_type_select))
       } else {
-        dest 
+        dest
       }
     })
-
+    
     observe({
       choices <- dest_fil() |>
         shinyWidgets::prepare_choices(
@@ -84,13 +121,12 @@ mod_meeting_place_server <- function(id,
         )
       shinyWidgets::updateVirtualSelect("select_dest", choices = choices)
     })
-
+    
     df_dists <- reactive({
-      
       req(df_origin())
       ntf <- showNotification("Calculating optimal meeting locations", duration = NULL, type = "message")
       on.exit(removeNotification(ntf))
-
+      
       dest_cities <- dest_fil()$city_code
       
       # Map the function over all possible destinations
@@ -107,7 +143,7 @@ mod_meeting_place_server <- function(id,
       
       # name the lists elements
       names(all_dest) <- dest_cities
-
+      
       # Bind the grand totals together arrange and display
       grand_tot <- purrr::map(
         dest_cities,
@@ -117,18 +153,24 @@ mod_meeting_place_server <- function(id,
         arrange(grand_tot_emission) |>
         mutate(rank = row_number()) |>
         relocate(rank, 1) |>
-        left_join(select(
-          dest_fil(),
-          city_code,
-          city_name,
-          country_name, 
-          oc, 
-          msf_type
-        ),
-        by = c("name_dest" = "city_code")
+        left_join(
+          select(
+            dest_fil(),
+            city_code,
+            city_name,
+            city_lon, 
+            city_lat,
+            country_name,
+            oc,
+            msf_type
+          ),
+          by = c("name_dest" = "city_code")
         ) |>
         select(
           rank,
+          city_code = name_dest, 
+          city_lon, 
+          city_lat,
           city_name,
           country_name,
           grand_tot_km,
@@ -138,53 +180,151 @@ mod_meeting_place_server <- function(id,
         )
     }) %>% bindEvent(input$go)
     
-    output$tbl <- gt::render_gt({
+    # Make a reactable 
+    orange_pal <- function(x) rgb(colorRamp(c("#B8CCAD", "#BF6C67"))(x), maxColorValue = 255)
+    
+    output$tbl <- reactable::renderReactable({
+      
       req(df_dists())
-      df_dists() %>%
-        # add a filter to number of row to show - reactable ?
-        head(n = 10) %>%
-        gt() %>%
-        tab_header(title = "Optimal Meeting Locations") %>%
-        data_color(
-          columns = grand_tot_emission,
-          method = "numeric",
-          palette = c("white", "orange"),
-          reverse = FALSE
-        ) %>%
-        fmt_number(
-          sep_mark = " ",
-          columns = c(grand_tot_km, grand_tot_emission)
-        ) %>%
-        cols_label(
-          rank ~ "Rank",
-          city_name ~ "City name",
-          country_name ~ "Country name",
-          grand_tot_km ~ "Total distance (km)",
-          grand_tot_emission ~ "Total CO2 emissions (CO2e)",
-          oc ~ "OC",
-          msf_type ~ "MSF type"
-        ) %>%
-        tab_footnote(
-          location = cells_column_labels("grand_tot_emission"),
-          "carbon dioxide equivalent with radiative forcing"
-        ) %>%
-        tab_footnote(
-          location = cells_column_labels("grand_tot_km"),
-          "Calculated using one way travel to destination"
-        )
+      
+      df <- df_dists() |> select(-c(city_code, city_lon, city_lat)) |> head(50) 
+      
+      reactable(df,
+                highlight = TRUE,
+                searchable = TRUE,
+                compact = TRUE,
+                defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
+                columns = list(
+                  rank = colDef("Rank", align = "left", maxWidth = 50),
+                  city_name = colDef("City", align = "left", maxWidth = 150),
+                  country_name = colDef("Country", align = "left", maxWidth = 150),
+                  grand_tot_km = colDef("Total Km", align = "left", format = colFormat(digits = 0), maxWidth = 150),
+                  grand_tot_emission = colDef("Total Emissions (kg CO2e)", 
+                                              align = "left", 
+                                              format = colFormat(digits = 0 ),
+                                              maxWidth = 150,
+                                              style = function(value) {
+                                                normalized <- (value - min(df$grand_tot_emission)) / (max(df$grand_tot_emission) - min(df$grand_tot_emission))
+                                                color <- orange_pal(normalized)
+                                                list(background = color)
+                                              }
+                  ),
+                  oc = colDef("Operational Center", align = "left", maxWidth = 200),
+                  msf_type = colDef("MSF type", align = "left")
+                )
+      )
     })
+    
+    
+    
+    # Map  =========================================================================
+    
+    #update choices of input 
+    
+    observeEvent(df_dists(), {
+      
+      choices <- df_dists() |>
+        shinyWidgets::prepare_choices(
+          label = city_name,
+          value = city_code,
+          group_by = country_name
+        )
+      shinyWidgets::updateVirtualSelect("map_dest", choices = choices)
+    })
+    
+    output$map <- leaflet::renderLeaflet({
+      req(input$map_dest)
+      
+      #origins
+      map_ori <- df_origin() |> left_join(dest, by = join_by(origin_id == city_code) )
+      
+      #destination selected 
+      map_dest <- input$map_dest
+
+      #get the shortest path in network for all origin and this destination 
+      short_paths <- purrr::map(map_ori$origin_id, 
+                                ~ sfnetworks::st_network_paths(net, from = .x, to = map_dest))
+      
+      short_nodes <- unique(unname(unlist(purrr::map( short_paths, ~ .x |> pull(node_paths) |> unlist() ))))
+      
+      short_edges <- unname(unlist(purrr::map( short_paths, ~ .x |> pull(edge_paths) |> unlist() ) ) )
+      
+      nodes <- net |> activate("nodes") |> filter(name %in% short_nodes) |> st_as_sf() |> mutate(type = if_else(name == map_dest, "destination", "origin"))
+      edges <- net |> activate("edges") |> slice(short_edges) |> st_as_sf()
+      
+      leaflet::leaflet() |>
+        leaflet::setView(0, 10, zoom = 2) |>
+        leaflet::addMapPane(name = "circles", zIndex = 410) |>
+        leaflet::addMapPane(name = "place_labels", zIndex = 450) |>
+        leaflet::addProviderTiles("CartoDB.Positron", group = "Light") |>
+        leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) |>
+        leaflet.extras::addFullscreenControl(position = "topleft") |>
+        leaflet.extras::addResetMapButton()  |>
+        leaflet::addCircleMarkers(
+          data = nodes,
+          lng = ~lon,
+          lat = ~lat,
+          radius = 7, 
+          color = ~ "white",
+          fillOpacity = 0.8,
+          weight = 1,
+          fillColor = ~ ifelse(type == "destination", "darkred", "steelblue"),
+          label = ~ city_name,
+          options = leaflet::pathOptions(pane = "circles")
+        ) |> 
+         leaflet::addPolylines(data = edges) #|> 
+        # 
+        # addLegend("topright",
+        #           opacity = 0.5,
+        #           title="Median Full Risk Premium", 
+        #           group="Median Full Risk Premium")
+      
+       
+      # leaflet::leaflet() %>%
+      #   leaflet::setView(0, 10, zoom = 2) %>%
+      #   leaflet::addMapPane(name = "circles", zIndex = 410) %>%
+      #   leaflet::addMapPane(name = "place_labels", zIndex = 450) %>%
+      #   leaflet::addProviderTiles("CartoDB.Positron", group = "Light") %>%
+      #   leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) %>%
+      #   leaflet.extras::addFullscreenControl(position = "topleft") %>%
+      #   leaflet.extras::addResetMapButton()  %>%
+      #   leaflet::addCircleMarkers(
+      #     data = map_dest,
+      #     lng = ~city_lon,
+      #     lat = ~city_lat,
+      #     fillColor = "darkred",
+      #     fillOpacity = 0.8,
+      #     weight = 1,
+      #     color = "#FFFFFF",
+      #     label = ~ city_name,
+      #     options = leaflet::pathOptions(pane = "circles")
+      #   ) |> 
+      #   leaflet::addCircleMarkers(
+      #     data = map_ori,
+      #     lng = ~city_lon,
+      #     lat = ~city_lat,
+      #     fillColor = "steelblue",
+      #     fillOpacity = 0.8,
+      #     weight = 1,
+      #     label = ~ city_name,
+      #     options = leaflet::pathOptions(pane = "circles")
+      #   )
+    })   
+    
   })
 }
 
 # Function to retrieve the distance/emissions/path to a destination
 # gives a grand total df and the details df
 
-get_dest_tot <- function(df_origin,
-                         destination,
-                         df_conversion,
-                         dist_mat) {
+get_dest_tot <- function(
+    df_origin,
+    destination,
+    df_conversion,
+    dist_mat
+) {
   distances <- unname(dist_mat[df_origin$origin_id, destination])
-
+  
   df_details <- df_origin |>
     mutate(
       name_dest = destination,
@@ -205,20 +345,20 @@ get_dest_tot <- function(df_origin,
       trip_emissions = round(digits = 3, distance_km * emissions_factor),
       total_emissions = n_participant * trip_emissions
     )
-
+  
   grand_df <- df_details |>
     group_by(name_dest) |>
     summarise(
       grand_tot_km = sum(total_distance_km),
       grand_tot_emission = sum(total_emissions)
     )
-
+  
   ls <- list(
     details = df_details,
     total = grand_df
   )
-
+  
   return(ls)
-
+  
   names(ls) <- destination
 }
