@@ -19,9 +19,7 @@ server <- function(input, output, session) {
     id = "mp",
     mat, 
     air_msf,
-    df_conversion,
-    orig_cities,
-    df_origin
+    df_conversion
   )
   
   mod_amex_server(

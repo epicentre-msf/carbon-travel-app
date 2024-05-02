@@ -60,13 +60,18 @@ mod_meeting_place_server <- function(id,
 
     # Filter the destinations to map on, this will also update choices for destination selector
     dest_fil <- reactive({
-      msf_type <- paste(input$msf_type_select, collapse = "|")
+      
+      req(input$msf_type_select)
+    
       if (input$msf_all == "msf") {
+        
+        msf_type_select <- paste(input$msf_type_select, collapse = "|")
+        
         dest |>
           filter(msf) |>
-          filter(str_detect(msf_type, pattern = msf_type()))
+          filter(str_detect(msf_type, pattern = msf_type_select))
       } else {
-        dest # |> filter( str_detect(msf_type, pattern = msf_type ))
+        dest 
       }
     })
 
@@ -81,14 +86,13 @@ mod_meeting_place_server <- function(id,
     })
 
     df_dists <- reactive({
+      
       req(df_origin())
-      ntf <- showNotification("Calculating optimal meeting locations", duration = NULL)
+      ntf <- showNotification("Calculating optimal meeting locations", duration = NULL, type = "message")
       on.exit(removeNotification(ntf))
 
       dest_cities <- dest_fil()$city_code
-      if (length(input$select_dest)) {
-        dest_cities <- dest_cities[dest_cities %in% input$select_dest]
-      }
+      
       # Map the function over all possible destinations
       all_dest <- purrr::map(
         # the desired destinations - for now include all of them. Add filters to this if you wish
@@ -100,6 +104,7 @@ mod_meeting_place_server <- function(id,
           dist_mat = mat
         )
       )
+      
       # name the lists elements
       names(all_dest) <- dest_cities
 
@@ -116,7 +121,9 @@ mod_meeting_place_server <- function(id,
           dest_fil(),
           city_code,
           city_name,
-          country_name
+          country_name, 
+          oc, 
+          msf_type
         ),
         by = c("name_dest" = "city_code")
         ) |>
@@ -130,31 +137,7 @@ mod_meeting_place_server <- function(id,
           msf_type
         )
     }) %>% bindEvent(input$go)
-
-    #   all_dist <- purrr::map(
-    #     dest_list,
-    #     ~ get_dest_tot(
-    #       df_origin(),
-    #       .x,
-    #       df_conversion,
-    #       mat
-    #     )
-    #   ) %>%
-    #     bind_rows() %>%
-    #     distinct(destination, .keep_all = TRUE) %>%
-    #     arrange(grand_tot_emission) %>%
-    #     mutate(rank = row_number()) %>%
-    #     relocate(rank, 1) %>%
-    #     left_join(., select(
-    #       air_msf,
-    #       oc,
-    #       msf_type,
-    #       city_id
-    #     ), by = c("destination" = "city_id")) %>%
-    #     separate(destination, c("Country", "City"), "-") %>%
-    #     mutate(across(c(Country, City), str_to_title))
-    # })
-
+    
     output$tbl <- gt::render_gt({
       req(df_dists())
       df_dists() %>%

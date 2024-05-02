@@ -6,14 +6,20 @@ This is a multi-function app that help users look into the Carbon emissions due 
 
 The app is organised in two parts
 
-1. **The travel planner**
-   helps MSF/EPICENTRE decision makers to identify suitable meeting/events locations in order to minimise the *plane travel* CO2 emissions. This currently supports only locations where MSF is present (Office or Project)
-
-  **Note:** this algorithms uses straight line travel between cities and does not (yet) take into account possible stop overs
-
-2. **The Amex Analysis**
+1. **The Amex Analysis dashboard**
  Provides an analysis into the AMEX flight data. This dataset summarises all the air travels booked through the AMEX travel agency
    
+2. **The travel planner**
+helps MSF/EPICENTRE decision makers to identify suitable meeting/events locations in order to minimise the *plane travel* CO2 emissions.
+
+# Set-up 
+
+In order to run the App locally, you need to have access to `Carbon-travel-App` in Maëlle Charrier's onedrive. Once this is done, you can run the scripts in `data-prep` to prepare the data and the distance matrix: 
+
+1. `prepare_data.R` - prepares the cities, airports and MSF data
+2. `data_prep_amex.R` - binds, clean and add cities to the AMEX data
+3. `prep_distance_matrix.R` - uses the cleaned AMEX data to generate a network and compute a distance matrix from it
+
 # Data sources
 
 The App currently uses

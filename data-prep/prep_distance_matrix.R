@@ -1,12 +1,9 @@
 # ---------------------------
-# Script name: prep_distance_matrix.R
-#
 # Purpose of script: Create the distance matrix between airports
 #
 # Author: Hugo Soubrier
 #
 # Date Created: 2024-01-12
-# Email: hugo.soubrier@epicentre.msf.org
 # ---------------------------
 # Notes:
 # uses the {airportr} package (https://dshkol.github.io/airportr/index.html)
@@ -24,7 +21,6 @@ pacman::p_load(
   sfnetworks,
   tidyverse # data science
 )
-
 
 source(here::here("R", "set_paths.R"))
 source(here::here("R", "utils.R"))
@@ -75,7 +71,7 @@ net_dest <- tibble(city_code = c(routes$ori_city_code,routes$dest_city_code),
   
   distinct(city_code, .keep_all = TRUE) |> 
   
-  left_join(select(msf, city_code, msf_type ), by = join_by(city_code)) |> 
+  left_join(select(msf, city_code, oc, msf_type ), by = join_by(city_code)) |> 
   mutate(msf = !is.na(msf_type))
 
 # Create a destination dataframe using the nodes

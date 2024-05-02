@@ -1,12 +1,9 @@
 # ---------------------------
-# Script name: city_code.R
-#
 # Purpose of script: Prepare the data for distance matrix calculations
 #
 # Author: Hugo Soubrier
 #
 # Date Created: 2024-01-18
-# Email: soubrierhugo@gmail.com
 # ---------------------------
 # Notes:
 #
