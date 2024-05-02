@@ -123,7 +123,6 @@ mod_meeting_place_server <- function(
       shinyWidgets::updateVirtualSelect("select_dest", choices = choices)
     })
     
-    
     df_dists <- reactive({
       req(df_origin())
       ntf <- showNotification("Calculating optimal meeting locations", duration = NULL, type = "warning")

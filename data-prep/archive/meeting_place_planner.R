@@ -115,7 +115,6 @@ ori_df <- data.frame(
 
 dest_select <- dest |> filter(msf, str_detect(msf_type, "OC")) |> pull(city_code)
 
-
 #try with one destination 
 get_dest_tot(ori_df, 
              "BOY", 

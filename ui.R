@@ -25,6 +25,7 @@ ui <- tagList(
     ),
     mod_amex_ui("flights"),
     mod_meeting_place_ui("mp"),
+    mod_travel_estim_ui("travel_estim"),
 
     # nav images and links
     nav_spacer(),
