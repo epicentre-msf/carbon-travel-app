@@ -7,6 +7,8 @@ date_intervals <- c( "Month" = "month",
 # Group variable
 group_vars <- c(
   "Organisation" = "org",
+  "Mission" = "mission_country_name",
+  "HQ/Flying/Mission" = "hq_flying_mission",
   "Reasons for Travel" = "reason_travel",
   "Flight type" = "flight_type",
   "Flight lenght" = "distance_km_cat"
@@ -21,6 +23,8 @@ display_var <- c( "Emissions (tCO2e)" = "emission",
 
 bar_group <- c(
   "Organisation" = "org",
+  "Mission" = "mission_country_name",
+  "HQ/Flying/Mission" = "hq_flying_mission",
   "Reason for travel" = "reason_travel",
   "Year" = "year")
 

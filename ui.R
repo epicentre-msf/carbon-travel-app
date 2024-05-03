@@ -13,11 +13,6 @@ ui <- tagList(
     collapsible = TRUE,
     inverse = FALSE,
     theme = bs_theme(
-      # base_font = font_google(
-      #   app_font,
-      #   wght = c(300, 400, 500, 600, 700, 800),
-      #   ital = c(0, 1)
-      # ),
       font_scale = 0.8,
       bootswatch = "minty",
       primary = "#4682B4",
@@ -26,9 +21,14 @@ ui <- tagList(
     mod_amex_ui("flights"),
     mod_meeting_place_ui("mp"),
     mod_travel_estim_ui("travel_estim"),
-
+    
     # nav images and links
     nav_spacer(),
+    nav_item( tags$a(
+      "Designed by EpiDS",
+      href = "https://epicentre-msf.github.io/gallery/",
+      target = "_blank"
+    )),
     nav_item(
       tags$a(
         shiny::icon("github"),

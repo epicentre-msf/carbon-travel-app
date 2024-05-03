@@ -138,10 +138,12 @@ mod_amex_ui <- function(id) {
                                shiny::selectizeInput(
                                  inputId = ns("group"),
                                  label = "Group",
-                                 choices = c(purrr::set_names("no grouping", NULL), group_vars),
+                                 choices = c(purrr::set_names("no grouping", NULL), group_vars[group_vars != "mission_country_name"]),
                                  multiple = FALSE,
                                  width = "95%"
                                ), 
+                               
+                              
                                
                                shiny::checkboxInput(
                                  ns("cumulative"),
@@ -374,7 +376,7 @@ mod_amex_server <- function(id,
                   passengers = n_distinct(traveler_name), 
                   
                   em_km = format(round(emissions/tot_km, digits = 6), scientific = TRUE),
-                  em_miles = format(round(emissions/tot_miles, digits = 6), scientific = TRUE),
+                  #em_miles = format(round(emissions/tot_miles, digits = 6), scientific = TRUE),
                   em_spent = format(round(emissions/spent, digits = 4), scientific = TRUE),
                   em_flights = round(emissions/flights, digits = 3),
                   em_passengers =  round(emissions/passengers, digits = 3)
@@ -390,7 +392,7 @@ mod_amex_server <- function(id,
                   passengers = n_distinct(traveler_name), 
                   
                   em_km = format(round(emissions/tot_km, digits = 6), scientific = TRUE),
-                  em_miles = format(round(emissions/tot_miles, digits = 6), scientific = TRUE),
+                  #em_miles = format(round(emissions/tot_miles, digits = 6), scientific = TRUE),
                   em_spent = format(round(emissions/spent, digits = 4), scientific = TRUE),
                   em_flights = round(emissions/flights, digits = 3),
                   em_passengers =  round(emissions/passengers, digits = 3)
@@ -399,21 +401,20 @@ mod_amex_server <- function(id,
         
         select(year, emissions, contains("em_"))
       
-      dat <- bind_rows(dat_year, dat_tot)
+      dat <- bind_rows(dat_year, dat_tot) |> mutate(year = fct_relevel(year, c("Global")))
       
-      reactable(dat,
+      reactable(arrange(dat, desc(year)),
                 highlight = TRUE,
-                searchable = TRUE,
                 compact = TRUE,
                 defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
                 columns = list(
-                  year = colDef("Year", align = "left"),
-                  emissions = colDef("Emissions (kg)", align = "left"),
-                  em_km = colDef("Emissions/km", align = "left"),
-                  em_miles = colDef("Emissions/miles", align = "left"),
-                  em_spent = colDef("Emissions/€", align = "left"),
-                  em_flights = colDef("Emissions/flights", align = "left"),
-                  em_passengers = colDef("Emissions/passengers", align = "left")
+                  year = colDef("Year", align = "left", maxWidth = 55),
+                  emissions = colDef("Emissions (kg)", align = "left", maxWidth = 120),
+                  em_km = colDef(" per km", align = "left", maxWidth = 80),
+                  #em_miles = colDef("per miles", align = "left"),
+                  em_spent = colDef("per €", align = "left", maxWidth = 80),
+                  em_flights = colDef("per flights", align = "left", maxWidth = 80),
+                  em_passengers = colDef("per traveller", align = "left", maxWidth = 90)
                 )
       )
     })

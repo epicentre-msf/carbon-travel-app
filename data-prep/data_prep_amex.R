@@ -35,27 +35,47 @@ sharepoint_path <- paths$sharepoint_path
 data_path <- get_sp_data_path()
 raw_path <- fs::path(data_path, "raw")
 clean_path <- here::here("data", "clean")
-#Import data  -------------------------------------------------------------
 
-# country_codes
-country_codes <- import(fs::path(data_path, "country_codes.xlsx")) %>%
-  clean_names() %>%
-  rename(mission_name = name) %>%
-  as_tibble()
+# Import data  -------------------------------------------------------------
 
-dir_ls <- fs::dir_ls(fs::path(raw_path, "amex-data"), regexp = "ALLMSF")
-myfiles <- lapply(dir_ls, rio::import, skip = 5, guess_max = 10000000)
+# OFFLINE
+path_offline <- here::here("data", "raw")
+raw_path <- path_offline
 
-names(myfiles) <- c("amex_2019", "amex_2020", "amex_2021", "amex_2022", "amex_2023", "amex_2024")
+# AIR
+air_dir_ls <- fs::dir_ls(fs::path(raw_path, "amex-data"), regexp = "AirEmissions")
+air_files <- lapply(air_dir_ls, rio::import, skip = 5, guess_max = 10000000)
 
-myfiles <- purrr::map(myfiles, ~ .x %>%
-                        as_tibble() %>%
-                        clean_names())
+air_files <- purrr::map(air_files, ~ .x %>%
+                          as_tibble() %>%
+                          clean_names())
 
 # bind all together
-amex <- myfiles %>%
+air_amex <- air_files %>%
   bind_rows() %>%
   as_tibble()
+# 
+# # TRAIN
+# rail_dir_ls <- fs::dir_ls(fs::path(raw_path, "amex-data"), regexp = "RailEmissions")
+# rail_files <- lapply(rail_dir_ls, rio::import, skip = 5, guess_max = 10000000)
+# 
+# #names(air_files) <- c("amex_2019", "amex_2020", "amex_2021", "amex_2022", "amex_2023", "amex_2024")
+# 
+# rail_files <- purrr::map(rail_files, ~ .x %>%
+#                           as_tibble() %>%
+#                           clean_names())
+# 
+# # bind all together
+# rail_amex <- rail_files %>%
+#   bind_rows() %>%
+#   as_tibble()
+# 
+# 
+# rail_amex |> names()
+
+# Bind all together
+
+amex <- bind_rows(air_amex)
 
 # Clean data ----------
 
@@ -74,7 +94,7 @@ amex_clean <- amex %>%
     dest_code = destination_city_code,
     ori_code = origin_city_code,
     dest = destination_city,
-    mission = customer_defined_03,
+    code = customer_defined_03,
     ori = origin_city,
     reason_travel = customer_defined_08
   ) %>%
@@ -106,7 +126,7 @@ amex_clean <- amex %>%
       "r11" ~ "Personal travel (subaccount)",
       .default = NA
     ),
-    mission_id = str_to_upper(str_extract(mission, "[a-z]{2}")),
+    # mission_id = str_to_upper(str_extract(mission, "[a-z]{2}")),
     flight_type = case_match(
       flight_type,
       "domestic" ~ NA,
@@ -142,15 +162,74 @@ amex_clean <- amex %>%
   filter(!str_detect(carrier, "rail")) |>
   arrange(ticket_number) %>%
   select(-c(
-    #traveler_name,
+    client_id,
+    exchange_refund_code,
     ticket_number,
     reason_code,
     contains("customer_defined"),
     pnr
   ))
 
-# add country codes - THEY NEED TO BE CHECKED
-amex_clean <- left_join(amex_clean, country_codes, by = c("mission_id" = "country_code"))
+# Clean Mission code
+
+# using project codes
+project <- import(here::here(path_offline, "FormatedProjectCode.xlsx")) |>
+  as_tibble() |>
+  clean_names()
+
+project_clean <- project |>
+  mutate(
+    number = str_to_lower(str_squish(number)),
+    country_code = str_to_lower(str_squish(country_code)),
+    country_code = if_else(country_name == "International", "int", country_code),
+    hq_flying_mission = str_to_lower(hq_flying_mission),
+    hq_flying_mission = case_match(
+      hq_flying_mission,
+      "access" ~ "other",
+      "autres sections" ~ "other",
+      "flying & flex" ~ "flying",
+      "io" ~ "other",
+      "missions" ~ "mission",
+      .default = hq_flying_mission
+    )
+  )
+
+# add iso codes to country
+country_codes <- distinct(select(
+  project_clean,
+  mission_country_code = country_code,
+  mission_country_name = country_name
+)) |>
+  mutate(mission_country_iso = countrycode::countrycode(mission_country_name, "country.name", "iso3c"))
+
+project_sub <- project_clean |>
+  select(
+    code = number,
+    mission_country_code = country_code,
+    hq_flying_mission
+  )
+
+amex_clean <- amex_clean |>
+  mutate(
+    code = str_squish(code),
+    
+    # flag all normal code
+    normal_flag = str_detect(code, "^[a-z]{2}[0-9]{3}$")
+  ) |>
+  # left join the project codes
+  left_join(project_sub, by = join_by(code)) |>
+  # fix all the missions that are not yet in the project file
+  mutate(
+    new_mission = is.na(hq_flying_mission) & !is.na(code) & normal_flag & code != "zz999",
+    mission_country_code = if_else(new_mission, str_extract(code, "^[a-z]{2}"), mission_country_code),
+    hq_flying_mission = if_else(new_mission, "mission", hq_flying_mission),
+    
+    # all ZZ go to switzerland (ch)
+    mission_country_code = if_else(code == "zz999", "ch", mission_country_code)
+  ) |>
+  # add the country name
+  left_join(country_codes, by = join_by(mission_country_code)) |>
+  select(-c(normal_flag, mission_country_code))
 
 # Calculate the distance between cities and compare with AMEX dist --------
 # Amex uses terrestrial miles
@@ -182,79 +261,85 @@ df_airports <- readRDS(here::here(clean_path, "df_airports.rds"))
 df_cities <- readRDS(here::here(clean_path, "df_cities.rds"))
 
 df_airports <- df_airports |> left_join(df_cities |>
-                                          distinct(city_code, .keep_all = TRUE) |> 
-                                          select(city_code, 
-                                                 city_lon = lon, 
-                                                 city_lat = lat ))
-#rename codes for matching 
-# Blaise Diagne International Airport is in data but doesn't match Dakar as a city - 
+                                          distinct(city_code, .keep_all = TRUE) |>
+                                          select(
+                                            city_code,
+                                            city_lon = lon,
+                                            city_lat = lat
+                                          ))
+# rename codes for matching
+# Blaise Diagne International Airport is in data but doesn't match Dakar as a city -
 # we force it to DKR iata code to match DKR city
 
-amex_clean <- amex_clean |> 
+amex_clean <- amex_clean |>
   rename(
-    raw_ori_iata_code = ori_code, 
+    raw_ori_iata_code = ori_code,
     raw_dest_iata_code = dest_code
-    
-  ) |> 
-  
-  mutate(raw_ori_iata_code = case_match(raw_ori_iata_code, 
-                                        "dss" ~ "dkr", 
-                                        .default = raw_ori_iata_code)) |> 
-  
+  ) |>
+  mutate(raw_ori_iata_code = case_match(
+    raw_ori_iata_code,
+    "dss" ~ "dkr",
+    .default = raw_ori_iata_code
+  )) |>
   select(-c(ori, dest))
 
-df_amex_codes <- tibble(iata_code = c(amex_clean$raw_ori_iata_code, 
-                                      amex_clean$raw_dest_iata_code)) |>
+df_amex_codes <- tibble(iata_code = c(
+  amex_clean$raw_ori_iata_code,
+  amex_clean$raw_dest_iata_code
+)) |>
   mutate(iata_code = str_to_upper(str_trim(iata_code))) |>
   distinct()
 
 df_amex_codes_matched_1 <- df_amex_codes |>
-  inner_join(df_airports, 
-             by = join_by(iata_code)
+  inner_join(
+    df_airports,
+    by = join_by(iata_code)
   ) |>
-  
-  select(iata_code, 
-         city_code, 
-         city_name, 
-         city_lon, 
-         city_lat,
-         country_name, 
-         country_code = country_code3, 
-         lon, 
-         lat)
+  select(
+    iata_code,
+    city_code,
+    city_name,
+    city_lon,
+    city_lat,
+    country_name,
+    country_code = country_code3,
+    lon,
+    lat
+  )
 
 df_amex_codes_matched_2 <- df_amex_codes |>
   anti_join(df_airports, by = join_by(iata_code == iata_code)) |>
   inner_join(df_cities, by = join_by(iata_code == city_code)) |>
-  mutate(city_code = iata_code, 
-         .after = iata_code) |> 
-  left_join(df_cities |> select(city_code, city_lon = lon, city_lat = lat), by = join_by(city_code) )
+  mutate(
+    city_code = iata_code,
+    .after = iata_code
+  ) |>
+  left_join(df_cities |> select(city_code, city_lon = lon, city_lat = lat), by = join_by(city_code))
 
-df_amex_codes_matched <- bind_rows(df_amex_codes_matched_1, 
-                                   df_amex_codes_matched_2) |>
+df_amex_codes_matched <- bind_rows(
+  df_amex_codes_matched_1,
+  df_amex_codes_matched_2
+) |>
   distinct(iata_code, .keep_all = TRUE)
 
 # Join the matched codes to the data
 
 df_amex_clean_lon_lat <- amex_clean |>
-  
   mutate(across(ends_with("_code"), ~ str_to_upper(str_trim(.x)))) |>
-  
   left_join(
-    df_amex_codes_matched |> select(iata_code, 
-                                    ref_ori_city_code = city_code, 
-                                    ref_ori_city_name = city_name, 
-                                    ref_ori_city_lon = city_lon,
-                                    ref_ori_city_lat = city_lat,
-                                    ref_ori_lon = lon, 
-                                    ref_ori_lat = lat, 
-                                    ref_ori_country_name = country_name, 
-                                    ref_ori_country_code = country_code
+    df_amex_codes_matched |> select(
+      iata_code,
+      ref_ori_city_code = city_code,
+      ref_ori_city_name = city_name,
+      ref_ori_city_lon = city_lon,
+      ref_ori_city_lat = city_lat,
+      ref_ori_lon = lon,
+      ref_ori_lat = lat,
+      ref_ori_country_name = country_name,
+      ref_ori_country_code = country_code
     ),
-    by = join_by(raw_ori_iata_code == iata_code )
-    
+    by = join_by(raw_ori_iata_code == iata_code)
   ) |>
-  
   left_join(
     df_amex_codes_matched |> select(
       iata_code,
@@ -263,66 +348,63 @@ df_amex_clean_lon_lat <- amex_clean |>
       ref_dest_city_lon = city_lon,
       ref_dest_city_lat = city_lat,
       ref_dest_lon = lon,
-      ref_dest_lat = lat, 
-      ref_dest_country_name = country_name, 
+      ref_dest_lat = lat,
+      ref_dest_country_name = country_name,
       ref_dest_country_code = country_code
     ),
     by = join_by(raw_dest_iata_code == iata_code)
-  ) 
+  )
 
-#coalesce raw and ref data 
-df_amex_clean_lon_lat <- df_amex_clean_lon_lat |> 
-  
+# coalesce raw and ref data
+df_amex_clean_lon_lat <- df_amex_clean_lon_lat |>
   rename(
-    ori_iata_code = raw_ori_iata_code, 
-    ori_city_code = ref_ori_city_code, 
-    ori_city_name = ref_ori_city_name, 
+    ori_iata_code = raw_ori_iata_code,
+    ori_city_code = ref_ori_city_code,
+    ori_city_name = ref_ori_city_name,
     ori_city_lon = ref_ori_city_lon,
     ori_city_lat = ref_ori_city_lat,
-    ori_lon = ref_ori_lon, 
-    ori_lat = ref_ori_lat, 
-    ori_country_name = ref_ori_country_name, 
-    ori_country_code = ref_ori_country_code, 
-    
-    dest_iata_code = raw_dest_iata_code, 
-    dest_city_code = ref_dest_city_code, 
-    dest_city_name = ref_dest_city_name, 
+    ori_lon = ref_ori_lon,
+    ori_lat = ref_ori_lat,
+    ori_country_name = ref_ori_country_name,
+    ori_country_code = ref_ori_country_code,
+    dest_iata_code = raw_dest_iata_code,
+    dest_city_code = ref_dest_city_code,
+    dest_city_name = ref_dest_city_name,
     dest_city_lon = ref_dest_city_lon,
     dest_city_lat = ref_dest_city_lat,
-    dest_lon = ref_dest_lon, 
-    dest_lat = ref_dest_lat, 
-    dest_country_name = ref_dest_country_name, 
+    dest_lon = ref_dest_lon,
+    dest_lat = ref_dest_lat,
+    dest_country_name = ref_dest_country_name,
     dest_country_code = ref_dest_country_code
-  ) |> 
-  
-  relocate(c(ori_iata_code, 
-             ori_lat,  
-             ori_lon, 
-             ori_city_code, 
-             ori_city_name, 
-             ori_city_lon, 
-             ori_city_lat, 
-             ori_lat, 
-             ori_country_name, 
-             ori_country_code), .after = org) |> 
-  
-  relocate(c(dest_iata_code, 
-             dest_lon, 
-             dest_lat, 
-             dest_city_code, 
-             dest_city_name, 
-             dest_city_lon, 
-             dest_city_lat, 
-             dest_country_name, 
-             dest_country_code), .after = ori_country_code) 
+  ) |>
+  relocate(
+    c(
+      ori_iata_code,
+      ori_lat,
+      ori_lon,
+      ori_city_code,
+      ori_city_name,
+      ori_city_lon,
+      ori_city_lat,
+      ori_lat,
+      ori_country_name,
+      ori_country_code
+    ),
+    .after = org
+  ) |>
+  relocate(
+    c(
+      dest_iata_code,
+      dest_lon,
+      dest_lat,
+      dest_city_code,
+      dest_city_name,
+      dest_city_lon,
+      dest_city_lat,
+      dest_country_name,
+      dest_country_code
+    ),
+    .after = ori_country_code
+  )
 
 write_rds(df_amex_clean_lon_lat, fs::path(clean_path, "amex_clean_lon_lat.rds"))
-
-
-# Clean Mission codes 
-
-
-df_amex_clean_lon_lat
-
-
-

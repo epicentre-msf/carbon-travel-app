@@ -53,7 +53,7 @@ mod_meeting_place_ui <- function(id) {
           class = "d-flex align-items-center",
           "Optimal Meeting locations"
         ),
-        min_height = "550px",
+        min_height = "400px",
         reactableOutput(ns("tbl"))
       ),
       bslib::card(
