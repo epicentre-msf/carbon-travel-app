@@ -15,7 +15,7 @@ server <- function(input, output, session) {
     )
   }
   
-  mod_meeting_place_server(
+  mod_travel_estim_server(
     id = "travel_estim", 
     mat,
     air_msf, 

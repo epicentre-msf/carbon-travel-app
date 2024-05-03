@@ -62,7 +62,12 @@ df <- data.frame(
   mutate(
     trip_emissions = round(digits = 3, distance_km * emissions_factor)
   ) |> 
-  left_join(select(dest, start_city = city_name, start_country = country_name), by = join_by(start_var == city_code)) |> 
-  left_join(select(dest, end_city = city_name, end_country = country_name), by = join_by(end_var == city_code)) |> 
+  left_join(select(dest, city_code, start_city = city_name, start_country = country_name), by = join_by(start_var == city_code)) |> 
+  left_join(select(dest, city_code, end_city = city_name, end_country = country_name), by = join_by(end_var == city_code)) |> 
   
   select(start_city, start_country, end_city, end_country, distance_km, trip_emissions) 
+
+
+
+
+
