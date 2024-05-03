@@ -408,3 +408,15 @@ df_amex_clean_lon_lat <- df_amex_clean_lon_lat |>
   )
 
 write_rds(df_amex_clean_lon_lat, fs::path(clean_path, "amex_clean_lon_lat.rds"))
+
+
+
+df_amex_clean_lon_lat |> select(traveler_name, ori_city_code, dest_city_code)
+
+amex |> names()
+
+
+
+
+
+

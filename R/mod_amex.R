@@ -1,6 +1,6 @@
 mod_amex_ui <- function(id) {
   ns <- NS(id)
-  
+
   nav_panel(
     "Flight data analysis",
     layout_sidebar(
@@ -24,13 +24,16 @@ mod_amex_ui <- function(id) {
           multiple = TRUE,
           options = list(placeholder = "All", plugins = "remove_button")
         ),
-        div(class = "pt-3", shiny::downloadButton(
-          outputId = ns("download"),
-          label = "Download data"
-        ))
+        div(
+          class = "pt-3",
+          shiny::downloadButton(
+            outputId = ns("download"),
+            label = "Download data"
+          )
+        )
       ),
-      
-      # VALUE BOXES ========================
+
+      # VALUE BOXES ========================================================
       layout_column_wrap(
         width = 1 / 4,
         fill = FALSE,
@@ -60,213 +63,170 @@ mod_amex_ui <- function(id) {
           class = "vb",
           value = textOutput(ns("segment")),
         )
-      ), 
-      
-      layout_column_wrap(width = 1 / 2,
-                         
-                         bslib::card(
-                           full_screen = FALSE,
-                           bslib::card_header(
-                             class = "d-flex align-items-center",
-                             
-                             "Emisions ratios"),
-                           title =  "Emisions ratios",
-                           
-                           reactableOutput(ns("ratio_tab"))
-                           
-                         ),
-                         
-                         navset_card_tab(
-                           full_screen = TRUE,
-                           wrapper = \(...) {
-                             bslib::card_body(..., padding = 0)
-                           },
-                           id = ns("geo_tabs"),
-                           title = div(
-                             class = "d-flex justify-content-between align-items-center",
-                             tags$span(
-                               class = "pe-2",
-                               tagList(shiny::icon("earth-africa"), "Map")
-                             )
-                           ),
-                           nav_panel(
-                             title = shiny::icon("map"),
-                             value = "map",
-                             leaflet::leafletOutput(ns("map"))
-                           ),
-                           nav_panel(
-                             title = shiny::icon("table"),
-                             value = "table",
-                             reactableOutput(ns("table"))
-                           )
-                           
-                         ), 
-                         
-                         bslib::card(
-                           full_screen = TRUE,
-                           
-                           bslib::card_header( 
-                             class = "d-flex align-items-center",
-                             # title
-                             "Time-serie", 
-                             
-                             bslib::popover(
-                               trigger = actionButton(
-                                 ns("dropdown"),
-                                 icon = shiny::icon("sliders"),
-                                 label = "Options",
-                                 class = "btn-light btn-sm pe-2 me-2"
-                               ), 
-                               
-                               shinyWidgets::radioGroupButtons(
-                                 ns("date_interval"),
-                                 label = "Date Interval",
-                                 size = "sm",
-                                 status = "outline-dark",
-                                 choices = date_intervals
-                               ),
-                               
-                               shiny::selectizeInput(
-                                 ns("display"),
-                                 label = "Display",
-                                 choices = display_var,
-                                 selected = display_var[[1]],
-                                 multiple = FALSE,
-                                 width = "95%"
-                               ),
-                               
-                               shiny::selectizeInput(
-                                 inputId = ns("group"),
-                                 label = "Group",
-                                 choices = c(purrr::set_names("no grouping", NULL), group_vars[group_vars != "mission_country_name"]),
-                                 multiple = FALSE,
-                                 width = "95%"
-                               ), 
-                               
-                              
-                               
-                               shiny::checkboxInput(
-                                 ns("cumulative"),
-                                 "Show cumulative data ?",
-                                 value = FALSE,
-                                 width = "100%"
-                               ),
-                               
-                             )), 
-                           highchartOutput(ns("time_serie"))
-                         ), 
-                         
-                         bslib::card(
-                           full_screen = TRUE,
-                           
-                           bslib::card_header( 
-                             class = "d-flex align-items-center",
-                             # title 
-                             "Bar plots", 
-                             
-                             bslib::popover(
-                               trigger = actionButton(
-                                 ns("dropdown"),
-                                 icon = shiny::icon("sliders"),
-                                 label = "Options",
-                                 class = "btn-light btn-sm pe-2 me-2"
-                               ), 
-                               
-                               shiny::selectizeInput(
-                                 ns("bar_var"),
-                                 label = "Display",
-                                 choices = display_var,
-                                 selected = display_var[[1]],
-                                 multiple = FALSE
-                               ),
-                               shiny::selectizeInput(
-                                 ns("bar_group"),
-                                 label = "Group",
-                                 choices = bar_group,
-                                 selected = bar_group[[1]],
-                                 multiple = FALSE
-                               )
-                             )),
-                           
-                           highchartOutput(ns("barplot")) 
-                         ), 
-                         
-                         
-                         # DISTRIBUTIONS CHARTS ========================================================
-                         navset_card_tab(
-                           full_screen = TRUE,
-                           wrapper = \(...) {
-                             bslib::card_body(..., padding = 0)
-                           },
-                           id = ns("dist_tabs"),
-                           title = div(
-                             class = "d-flex justify-content-between align-items-center",
-                             tags$span(
-                               class = "pe-2",
-                               tagList(shiny::icon("clock"), "Distributions")
-                             ),
-                             
-                             div(class = "pe-2",
-                                 
-                                 bslib::popover(
-                                   trigger = actionButton(
-                                     ns("dropdown"),
-                                     icon = shiny::icon("sliders"),
-                                     label = "Options",
-                                     class = "btn-light btn-sm pe-2 me-2"
-                                   ), 
-                                   
-                                   shinyWidgets::radioGroupButtons(
-                                     ns("dist_interval"),
-                                     label = "Date Interval",
-                                     size = "sm",
-                                     status = "outline-dark",
-                                     choices = date_intervals, 
-                                     selected = "year"
-                                   ),
-                                   
-                                   shiny::selectizeInput(
-                                     ns("dist_year"),
-                                     label = "Year",
-                                     choices = c(purrr::set_names("All years", NULL), init_year),
-                                     selected = init_year[[1]],
-                                     multiple = FALSE,
-                                     width = "100%"
-                                   ),
-                                   
-                                   shiny::selectizeInput(
-                                     ns("dist_var"),
-                                     label = "Display",
-                                     choices = display_var[display_var !="n_flights"],
-                                     selected = display_var[display_var !="n_flights"][[1]],
-                                     multiple = FALSE,
-                                     width = "100%"
-                                   )
-                                 )
-                             )
-                           ),
-                           nav_panel(
-                             title = shiny::icon("chart-line"),
-                             value = "boxplot",
-                             highcharter::highchartOutput(ns("dist_boxplot"))
-                           ),
-                           nav_panel(
-                             title = shiny::icon("chart-column"),
-                             value = "chart",
-                             highcharter::highchartOutput(ns("dist_hist"))
-                           )
-                           
-                         )
+      ),
+
+      # MAP & DEST TABLE ========================================================
+      layout_column_wrap(
+        width = 1 / 1,
+        navset_card_tab(
+          full_screen = TRUE,
+          wrapper = \(...) {
+            bslib::card_body(..., padding = 0)
+          },
+          id = ns("geo_tabs"),
+          title = div(
+            class = "d-flex justify-content-between align-items-center",
+            tags$span(
+              class = "pe-2",
+              tagList(shiny::icon("earth-africa"), "Map")
+            )
+          ),
+          nav_panel(
+            title = shiny::icon("map"),
+            value = "map",
+            leaflet::leafletOutput(ns("map"))
+          ),
+          nav_panel(
+            title = shiny::icon("table"),
+            value = "table",
+            reactableOutput(ns("table"))
+          )
+        )
+      ),
+
+      # TIME-SERIE & BOXPLOT ========================================================
+      layout_column_wrap(
+        width = 1 / 1,
+        navset_card_tab(
+          full_screen = TRUE,
+          wrapper = \(...) {
+            bslib::card_body(..., padding = 0)
+          },
+          id = ns("time_tabs"),
+          title = div(
+            class = "d-flex justify-content-between align-items-center",
+            tags$span(
+              class = "pe-2",
+              tagList(shiny::icon("clock"), "Distributions")
+            ),
+            div(
+              class = "pe-2",
+              bslib::popover(
+                trigger = actionButton(
+                  ns("dropdown"),
+                  icon = shiny::icon("sliders"),
+                  label = "Options",
+                  class = "btn-light btn-sm pe-2 me-2"
+                ),
+                shinyWidgets::radioGroupButtons(
+                  ns("date_interval"),
+                  label = "Date Interval",
+                  size = "sm",
+                  status = "outline-dark",
+                  choices = date_intervals
+                ),
+                shiny::selectizeInput(
+                  ns("select_year"),
+                  label = "Year",
+                  choices = c(purrr::set_names("All years", NULL), init_year),
+                  selected = NULL,
+                  multiple = FALSE,
+                  width = "100%"
+                ),
+                shiny::selectizeInput(
+                  ns("display"),
+                  label = "Display",
+                  choices = display_var,
+                  selected = display_var[[1]],
+                  multiple = FALSE,
+                  width = "95%"
+                ),
+                shiny::selectizeInput(
+                  inputId = ns("group"),
+                  label = "Group",
+                  choices = c(purrr::set_names("no grouping", NULL), group_vars[group_vars != "mission_country_name"]),
+                  multiple = FALSE,
+                  width = "95%"
+                ),
+                shiny::checkboxInput(
+                  ns("cumulative"),
+                  "Show cumulative data ?",
+                  value = FALSE,
+                  width = "100%"
+                ),
+              )
+            ),
+          ),
+          nav_panel(
+            title = shiny::icon("chart-line"),
+            value = "boxplot",
+            highcharter::highchartOutput(ns("time_serie"))
+          ),
+          nav_panel(
+            title = shiny::icon("chart-line"),
+            value = "boxplot",
+            highcharter::highchartOutput(ns("dist_boxplot"))
+          ),
+        )
+      ),
+      layout_column_wrap(
+        width = 1 / 2,
+
+        # EMISSONS RATIOS ========================================================
+        bslib::card(
+          full_screen = FALSE,
+          bslib::card_header(
+            class = "d-flex align-items-center",
+            "Emisions ratios"
+          ),
+          title = "Emisions ratios",
+          reactableOutput(ns("ratio_tab"))
+        ),
+
+        # BAR PLOT ========================================================
+        bslib::card(
+          full_screen = TRUE,
+          bslib::card_header(
+            class = "d-flex align-items-center",
+            # title
+            "Bar plots",
+            bslib::popover(
+              trigger = actionButton(
+                ns("dropdown"),
+                icon = shiny::icon("sliders"),
+                label = "Options",
+                class = "btn-light btn-sm pe-2 me-2"
+              ),
+              shiny::selectizeInput(
+                ns("bar_var"),
+                label = "Display",
+                choices = display_var,
+                selected = display_var[[1]],
+                multiple = FALSE
+              ),
+              shiny::selectizeInput(
+                ns("bar_group"),
+                label = "Group",
+                choices = bar_group,
+                selected = bar_group[[1]],
+                multiple = FALSE
+              )
+            )
+          ),
+          highchartOutput(ns("barplot"))
+        )
       )
     )
   )
 }
 
-mod_amex_server <- function(id,
-                            df_amex) {
+mod_amex_server <- function(
+  id,
+  df_amex
+) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    
+
     # Prepare Amex data
     amex_org <- reactive({
       if (length(input$select_org)) {
@@ -274,153 +234,150 @@ mod_amex_server <- function(id,
       } else {
         df_amex
       }
-      
     })
-    
+
     # Update Reasons and Date Input depending on select_org
-    observeEvent(input$select_org,
-                 ignoreNULL = FALSE,
-                 {
-                   min_date <- min(amex_org()$invoice_date)
-                   max_date <- max(amex_org()$invoice_date)
-                   
-                   date_seq <- format(seq.Date(min_date, max_date, by = "month"), "%Y-%m")
-                   
-                   shinyWidgets::updateSliderTextInput(
-                     session = session,
-                     inputId = "date_range",
-                     choices = date_seq
-                   )
-                 }
+    observeEvent(
+      input$select_org,
+      ignoreNULL = FALSE,
+      {
+        min_date <- min(amex_org()$invoice_date)
+        max_date <- max(amex_org()$invoice_date)
+
+        date_seq <- format(seq.Date(min_date, max_date, by = "month"), "%Y-%m")
+
+        shinyWidgets::updateSliderTextInput(
+          session = session,
+          inputId = "date_range",
+          choices = date_seq
+        )
+      }
     )
-    
+
     # Filter amex_org with date and reason value
     amex_ready <- reactive({
       date <- paste0(input$date_range, "-01")
-      
+
       df <- amex_org() |>
         filter(invoice_date >= date[1], invoice_date <= date[2])
       return(df)
     })
-    
+
     # Summary amex_ready() for value boxes
     amex_summary <- reactive({
-      
-      main_segment <- amex_ready() |> 
-        count(ori_city_name, dest_city_name) |> 
-        mutate(segment = paste(ori_city_name, dest_city_name, sep = "-")) |> 
+      main_segment <- amex_ready() |>
+        count(ori_city_name, dest_city_name) |>
+        mutate(segment = paste(ori_city_name, dest_city_name, sep = "-")) |>
         arrange(desc(n))
-      
+
       dat_summ <- amex_ready() |>
-        
         summarise(
-          n_flight = frmt_num( n()),
-          n_segment = nrow(main_segment), 
-          main_seg =  main_segment |> filter(row_number() == 1) |> pull(segment),
+          n_flight = frmt_num(n()),
+          n_segment = nrow(main_segment),
+          main_seg = main_segment |> filter(row_number() == 1) |> pull(segment),
           main_seg_n = main_segment |> filter(row_number() == 1) |> pull(n),
           tot_distance_miles = frmt_num(sum(distance_miles)),
           tot_distance_km = frmt_num(sum(distance_km)),
-          tot_emissions = frmt_num(sum(emission)), 
-          emission_km = round(digits = 10, sum(emission)/sum(distance_km))
+          tot_emissions = frmt_num(sum(emission)),
+          emission_km = round(digits = 10, sum(emission) / sum(distance_km))
         )
-      
+
       return(dat_summ)
     })
-    
-    
+
+
     # VALUE BOXES ============================
-    
+
     output$flight <- renderText({
       req(amex_summary())
       paste(amex_summary()$n_flight, " Flights")
     })
-    
+
     output$segment <- renderText({
       req(amex_summary())
       paste(amex_summary()$n_segment, " unique")
     })
-    
+
     output$dist <- renderText({
       req(amex_summary())
       paste(amex_summary()$tot_distance_km, " km")
     })
-    
+
     output$dist_info <- renderUI({
       req(amex_summary())
       tags$small(glue::glue("{amex_summary()$tot_distance_miles} miles"))
     })
-    
+
     output$emission <- renderText({
       req(amex_summary())
       paste(amex_summary()$tot_emissions, " tCO2e")
     })
-    
+
     output$emission_info <- renderText({
       req(amex_summary())
-      
+
       paste(amex_summary()$emission_km, "tCO2e per Km")
     })
-    
-    
+
+
     # Ratio table  ===========================================
-    
+
     output$ratio_tab <- renderReactable({
-      
-      dat_year <- amex_ready() |> 
-        summarise(.by = year, 
-                  emissions = round(sum(emission), digits = 0), 
-                  spent = sum(gross_amount), 
-                  tot_km = sum(distance_km), 
-                  tot_miles = sum(distance_miles), 
-                  flights = n(), 
-                  passengers = n_distinct(traveler_name), 
-                  
-                  em_km = format(round(emissions/tot_km, digits = 6), scientific = TRUE),
-                  #em_miles = format(round(emissions/tot_miles, digits = 6), scientific = TRUE),
-                  em_spent = format(round(emissions/spent, digits = 4), scientific = TRUE),
-                  em_flights = round(emissions/flights, digits = 3),
-                  em_passengers =  round(emissions/passengers, digits = 3)
-        ) |> 
+      dat_year <- amex_ready() |>
+        summarise(
+          .by = year,
+          emissions = round(sum(emission), digits = 0),
+          spent = sum(gross_amount),
+          tot_km = sum(distance_km),
+          tot_miles = sum(distance_miles),
+          flights = n(),
+          passengers = n_distinct(traveler_name),
+          em_km = format(round(emissions / tot_km, digits = 6), scientific = TRUE),
+          # em_miles = format(round(emissions/tot_miles, digits = 6), scientific = TRUE),
+          em_spent = format(round(emissions / spent, digits = 4), scientific = TRUE),
+          em_flights = round(emissions / flights, digits = 3),
+          em_passengers = round(emissions / passengers, digits = 3)
+        ) |>
         select(year, emissions, contains("em_"))
-      
-      dat_tot <- amex_ready() |> 
-        summarise(emissions = round(sum(emission), digits = 0), 
-                  spent = sum(gross_amount), 
-                  tot_km = sum(distance_km), 
-                  tot_miles = sum(distance_miles), 
-                  flights = n(), 
-                  passengers = n_distinct(traveler_name), 
-                  
-                  em_km = format(round(emissions/tot_km, digits = 6), scientific = TRUE),
-                  #em_miles = format(round(emissions/tot_miles, digits = 6), scientific = TRUE),
-                  em_spent = format(round(emissions/spent, digits = 4), scientific = TRUE),
-                  em_flights = round(emissions/flights, digits = 3),
-                  em_passengers =  round(emissions/passengers, digits = 3)
-        ) |> 
-        mutate(year = "Global") |> 
-        
+
+      dat_tot <- amex_ready() |>
+        summarise(
+          emissions = round(sum(emission), digits = 0),
+          spent = sum(gross_amount),
+          tot_km = sum(distance_km),
+          tot_miles = sum(distance_miles),
+          flights = n(),
+          passengers = n_distinct(traveler_name),
+          em_km = format(round(emissions / tot_km, digits = 6), scientific = TRUE),
+          # em_miles = format(round(emissions/tot_miles, digits = 6), scientific = TRUE),
+          em_spent = format(round(emissions / spent, digits = 4), scientific = TRUE),
+          em_flights = round(emissions / flights, digits = 3),
+          em_passengers = round(emissions / passengers, digits = 3)
+        ) |>
+        mutate(year = "Global") |>
         select(year, emissions, contains("em_"))
-      
+
       dat <- bind_rows(dat_year, dat_tot) |> mutate(year = fct_relevel(year, c("Global")))
-      
-      reactable(arrange(dat, desc(year)),
-                highlight = TRUE,
-                compact = TRUE,
-                defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
-                columns = list(
-                  year = colDef("Year", align = "left", maxWidth = 55),
-                  emissions = colDef("Emissions (kg)", align = "left", maxWidth = 120),
-                  em_km = colDef(" per km", align = "left", maxWidth = 80),
-                  #em_miles = colDef("per miles", align = "left"),
-                  em_spent = colDef("per €", align = "left", maxWidth = 80),
-                  em_flights = colDef("per flights", align = "left", maxWidth = 80),
-                  em_passengers = colDef("per traveller", align = "left", maxWidth = 90)
-                )
+
+      reactable(
+        arrange(dat, desc(year)),
+        highlight = TRUE,
+        compact = TRUE,
+        defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
+        columns = list(
+          year = colDef("Year", align = "left", maxWidth = 55),
+          emissions = colDef("Emissions (kg)", align = "left", maxWidth = 120),
+          em_km = colDef(" per km", align = "left", maxWidth = 80),
+          # em_miles = colDef("per miles", align = "left"),
+          em_spent = colDef("per €", align = "left", maxWidth = 80),
+          em_flights = colDef("per flights", align = "left", maxWidth = 80),
+          em_passengers = colDef("per traveller", align = "left", maxWidth = 90)
+        )
       )
     })
-    
+
     # Map  ===========================================
-    
+
     df_origin <- reactive({
       amex_ready() %>%
         summarise(
@@ -431,7 +388,7 @@ mod_amex_server <- function(id,
         ) %>%
         tidyr::drop_na()
     })
-    
+
     df_destination <- reactive({
       amex_ready() %>%
         summarise(
@@ -442,7 +399,7 @@ mod_amex_server <- function(id,
         ) %>%
         tidyr::drop_na()
     })
-    
+
     output$map <- leaflet::renderLeaflet({
       leaflet::leaflet() %>%
         leaflet::setView(0, 10, zoom = 2) %>%
@@ -485,28 +442,33 @@ mod_amex_server <- function(id,
           options = leaflet::pathOptions(pane = "circles")
         )
     })
-    
+
     # Time-Series ===========================================
-    
+
     output$time_serie <- renderHighchart({
       req(amex_summary())
-      
+
       # Set filters
       if (input$group != "no grouping") {
         group_sym <- sym(input$group)
       } else {
         group_sym <- NULL
       }
-      
-      
+
       # Prepare data
       hc_df <- reactive({
         y_var <- sym(input$display)
         
-        df <- amex_ready() %>%
+        if (input$select_year != "All years") {
+          df <- amex_ready() |>
+            filter(year == input$select_year)
+        } else {
+          df <- amex_ready()
+        }
+
+        df_hist <- df %>%
           rename("date_group" = input$date_interval) %>%
           mutate(date_group = fct_relevel(as.character(date_group))) %>%
-          
           summarise(
             .by = c(!!group_sym, date_group),
             n_flights = n(),
@@ -520,12 +482,12 @@ mod_amex_server <- function(id,
             lab = fmt_n(!!y_var),
             n_c = cumsum(!!y_var)
           )
-        
-        return(df)
+
+        return(df_hist)
       })
-      
+
       n_var <- dplyr::if_else(input$cumulative, "n_c", input$display)
-      
+
       if (input$group == "no grouping") {
         base_hc <- hchart(
           hc_df(),
@@ -536,7 +498,6 @@ mod_amex_server <- function(id,
           )
         )
       } else {
-        
         # Not in right x order if group is org
         base_hc <- hchart(
           hc_df(),
@@ -548,19 +509,16 @@ mod_amex_server <- function(id,
           )
         )
       }
-      
+
       base_hc |>
-        
-        hc_xAxis(title = list(text = str_to_sentence(input$date_interval)), 
-                 categories = levels(hc_df()$date_group)) |> 
-        
-        hc_yAxis(title = list(text = names(display_var[display_var == input$display])
-                              
-                              
-        )) |>
-        
-        hc_tooltip(useHTML = TRUE,
-                   formatter = JS("
+        hc_xAxis(
+          title = list(text = str_to_sentence(input$date_interval)),
+          categories = levels(hc_df()$date_group)
+        ) |>
+        hc_yAxis(title = list(text = names(display_var[display_var == input$display]))) |>
+        hc_tooltip(
+          useHTML = TRUE,
+          formatter = JS("
       function(){
       outHTML =  '<i>' + this.point.date_group +'</i><b><br>' + this.point.lab + '</b>'
        return(outHTML)
@@ -568,27 +526,28 @@ mod_amex_server <- function(id,
        }")
         )
     })
-    
-    
+
+
     # Distributions =======================================
-    
+
     # observe Event for distribution year input
-    
+
     observeEvent(input$date_range, {
       year_choices <- sort(unique(amex_ready()$year), decreasing = TRUE)
-      
-      shiny::updateSelectizeInput("dist_year",
-                                  choices = c(purrr::set_names("All years", NULL), year_choices),
-                                  session = session
+
+      shiny::updateSelectizeInput(
+        "dist_year",
+        choices = c(purrr::set_names("All years", NULL), year_choices),
+        session = session
       )
     })
-    
+
     # Histograms
     output$dist_hist <- renderHighchart({
       req(amex_summary())
-      
+
       dist_var_sym <- sym(input$dist_var)
-      
+
       if (input$dist_year != "All years") {
         hc_var <- amex_ready() %>%
           filter(year == input$dist_year) %>%
@@ -597,9 +556,10 @@ mod_amex_server <- function(id,
         hc_var <- amex_ready() %>%
           pull(!!dist_var_sym)
       }
-      
-      hchart(hc_var,
-             name = names(display_var[display_var == input$dist_var])
+
+      hchart(
+        hc_var,
+        name = names(display_var[display_var == input$dist_var])
       ) %>%
         hc_xAxis(
           plotLines = list(
@@ -612,33 +572,32 @@ mod_amex_server <- function(id,
           )
         )
     })
-    
-    
-    
+
+
+
     # Boxplot
     output$dist_boxplot <- renderHighchart({
       req(amex_summary())
-      
-      
-      dist_var_sym <- sym(input$dist_var)
-      
-      date_interval_sym <- sym(input$dist_interval) 
-      
-      if(input$dist_year != "All years"){
-        
-        amex_box <- amex_ready() |> 
-          filter(year == input$dist_year)
+
+      dist_var_sym <- sym(input$display)
+
+      date_interval_sym <- sym(input$date_interval)
+
+      if (input$select_year != "All years") {
+        amex_box <- amex_ready() |>
+          filter(year == input$select_year)
       } else {
         amex_box <- amex_ready()
       }
-      
-      box_df <- data_to_boxplot(amex_box,
-                                !!dist_var_sym,
-                                group_var = !!date_interval_sym,
-                                name = names(display_var[display_var == input$dist_var])
-                                # showInLegend = FALSE
+
+      box_df <- data_to_boxplot(
+        amex_box,
+        !!dist_var_sym,
+        group_var = !!date_interval_sym,
+        name = names(display_var[display_var == input$display])
+        # showInLegend = FALSE
       )
-      
+
       highchart() %>%
         hc_chart(zoomType = "x") %>%
         hc_xAxis(
@@ -646,16 +605,16 @@ mod_amex_server <- function(id,
           crosshair = TRUE
         ) |>
         hc_yAxis(
-          title = list(text = names(display_var[display_var == input$dist_var]))
+          title = list(text = names(display_var[display_var == input$display]))
         ) %>%
         hc_add_series_list(box_df) %>%
         hc_tooltip(shared = TRUE)
     })
-    
+
     # Global parts ========================================
     output$barplot <- renderHighchart({
       bar_var_sym <- sym(input$bar_var)
-      
+
       bar_group_sym <- sym(input$bar_group)
       hc_df <- amex_ready() %>%
         # filter out Nas for group var
@@ -674,7 +633,7 @@ mod_amex_server <- function(id,
         ) %>%
         rename("group_var" = input$bar_group) %>%
         arrange(desc(!!bar_var_sym))
-      
+
       hchart(
         hc_df,
         "column",
@@ -695,9 +654,9 @@ mod_amex_server <- function(id,
         ) %>%
         hc_chart(inverted = TRUE)
     })
-    
+
     # GEO TABLE ==========================================
-    
+
     output$table <- renderReactable({
       geo_tab <- amex_ready() %>%
         summarise(
@@ -714,21 +673,22 @@ mod_amex_server <- function(id,
         select(-emission_pct) %>%
         arrange(desc(n_flights)) %>%
         head(n = 20)
-      
-      reactable(geo_tab,
-                highlight = TRUE,
-                searchable = TRUE,
-                compact = TRUE,
-                defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
-                columns = list(
-                  dest_city_name = colDef("Destination", align = "left"),
-                  n_flights = colDef("N Flights"),
-                  emission = colDef("Emissions (tCO2e)"),
-                  main_org = colDef("Main organisation")
-                )
+
+      reactable(
+        geo_tab,
+        highlight = TRUE,
+        searchable = TRUE,
+        compact = TRUE,
+        defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
+        columns = list(
+          dest_city_name = colDef("Destination", align = "left"),
+          n_flights = colDef("N Flights"),
+          emission = colDef("Emissions (tCO2e)"),
+          main_org = colDef("Main organisation")
+        )
       )
     })
-    
+
     # # Download  ==================================================
     output$download <- downloadHandler(
       filename = function() {
