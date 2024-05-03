@@ -52,6 +52,9 @@ conversion_df <- read_rds(here::here(clean_path, "conversion_df.rds"))
 # Get AMEX data
 df_amex <- read_rds(here::here(clean_path, "amex_clean_lon_lat.rds"))
 
+#load the network 
+net <- read_rds(here::here(clean_path, "amex_network.rds"))
+
 # date range
 init_year <- unique(df_amex$year)
 init_date_range <- format(seq.Date(min(df_amex$invoice_date), max(df_amex$invoice_date), by = "month"), "%Y-%m")

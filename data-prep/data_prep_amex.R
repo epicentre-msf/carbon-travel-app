@@ -317,3 +317,12 @@ df_amex_clean_lon_lat <- df_amex_clean_lon_lat |>
              dest_country_code), .after = ori_country_code) 
 
 write_rds(df_amex_clean_lon_lat, fs::path(clean_path, "amex_clean_lon_lat.rds"))
+
+
+# Clean Mission codes 
+
+
+df_amex_clean_lon_lat
+
+
+

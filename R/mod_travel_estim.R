@@ -37,7 +37,8 @@ mod_travel_estim_server <- function(
     id,
     mat,
     air_msf,
-    df_conversion
+    df_conversion, 
+    network
 ) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns

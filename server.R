@@ -19,14 +19,16 @@ server <- function(input, output, session) {
     id = "travel_estim", 
     mat,
     air_msf, 
-    df_conversion
+    df_conversion, 
+    net
   )
   
   mod_meeting_place_server(
     id = "mp",
     mat, 
     air_msf,
-    df_conversion
+    df_conversion, 
+    net
   )
   
   mod_amex_server(
