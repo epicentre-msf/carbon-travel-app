@@ -172,7 +172,7 @@ amex_clean <- amex %>%
 
 # Clean Mission code
 
-# using project codes
+# using project codes from OCG 
 project <- import(here::here(path_offline, "FormatedProjectCode.xlsx")) |>
   as_tibble() |>
   clean_names()
@@ -191,7 +191,8 @@ project_clean <- project |>
       "io" ~ "other",
       "missions" ~ "mission",
       .default = hq_flying_mission
-    )
+    ), 
+    hq_flying_mission = if_else(number == "zz999", "other", hq_flying_mission)
   )
 
 # add iso codes to country
@@ -209,18 +210,21 @@ project_sub <- project_clean |>
     hq_flying_mission
   )
 
+
 amex_clean <- amex_clean |>
   mutate(
     code = str_squish(code),
     
     # flag all normal code
     normal_flag = str_detect(code, "^[a-z]{2}[0-9]{3}$")
-  ) |>
+  ) |> 
+
   # left join the project codes
   left_join(project_sub, by = join_by(code)) |>
-  # fix all the missions that are not yet in the project file
+  
+# fix all the missions that are not yet in the project file
   mutate(
-    new_mission = is.na(hq_flying_mission) & !is.na(code) & normal_flag & code != "zz999",
+    new_mission = is.na(hq_flying_mission) & !is.na(code) & normal_flag,
     mission_country_code = if_else(new_mission, str_extract(code, "^[a-z]{2}"), mission_country_code),
     hq_flying_mission = if_else(new_mission, "mission", hq_flying_mission),
     
@@ -231,6 +235,13 @@ amex_clean <- amex_clean |>
   left_join(country_codes, by = join_by(mission_country_code)) |>
   select(-c(normal_flag, mission_country_code))
 
+# Make sure this only works on OCG
+# amex_clean |> filter(!is.na(code)) |> count(org)
+# 
+# project_clean |> filter(number == "lb904")
+# 
+# amex_clean |> filter(!is.na(hq_flying_mission), org == "OCB") |> pull(code)
+# 
 # Calculate the distance between cities and compare with AMEX dist --------
 # Amex uses terrestrial miles
 # can't compare distance yet
@@ -357,6 +368,7 @@ df_amex_clean_lon_lat <- amex_clean |>
 
 # coalesce raw and ref data
 df_amex_clean_lon_lat <- df_amex_clean_lon_lat |>
+  
   rename(
     ori_iata_code = raw_ori_iata_code,
     ori_city_code = ref_ori_city_code,
@@ -408,15 +420,3 @@ df_amex_clean_lon_lat <- df_amex_clean_lon_lat |>
   )
 
 write_rds(df_amex_clean_lon_lat, fs::path(clean_path, "amex_clean_lon_lat.rds"))
-
-
-
-df_amex_clean_lon_lat |> select(traveler_name, ori_city_code, dest_city_code)
-
-amex |> names()
-
-
-
-
-
-

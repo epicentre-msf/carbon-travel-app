@@ -26,7 +26,7 @@ source(here::here("R", "set_paths.R"))
 source(here::here("R", "utils.R"))
 
 # Import data -------------------------------------------------------------
-dat <- readRDS(here::here("data","clean", "amex_clean_lon_lat.rds"))
+dat <- readRDS(here::here("data","clean", "full_amex_wagram.rds"))
 
 msf <- readRDS(here::here("data","clean", "unique_msf_clean.rds"))
 
@@ -39,7 +39,7 @@ conversion_df <- readRDS(here::here("data", "clean", "conversion_df.rds"))
 
 dat <- dat |> 
   
-  select(contains("city"), -city_pairs) 
+  select(contains("city")) 
 
 routes <- dat |> 
   
@@ -95,7 +95,7 @@ mapview::mapview( net |> activate("nodes") |> st_as_sf(),
                     layer.name = "edges")
 
 #save the network
-readr::write_rds(net, here::here("data", "clean", "amex_network.rds"))
+readr::write_rds(net, here::here("data", "clean", "flights_network.rds"))
 
 # Distance Matrix ---------------------------------------------------------
 #st_network calculates the shortest distance using Haversine 
@@ -121,3 +121,10 @@ units(mat) <-NULL
 
 #save the matrix
 readr::write_rds(mat, here::here("data", "clean", "distance_matrix.rds"))
+
+
+# Create a distance Matrix of cities between them (single travel estimation tab)-------------------------
+
+
+
+

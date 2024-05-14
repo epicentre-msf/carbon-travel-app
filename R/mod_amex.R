@@ -55,7 +55,7 @@ mod_amex_ui <- function(id) {
           theme = "primary",
           class = "vb",
           value = textOutput(ns("emission")),
-          uiOutput(ns("emission_info"))
+         #uiOutput(ns("emission_info"))
         ),
         value_box(
           title = "Routes",
@@ -258,8 +258,11 @@ mod_amex_server <- function(
     amex_ready <- reactive({
       date <- paste0(input$date_range, "-01")
 
+      #browser()
+
       df <- amex_org() |>
         filter(invoice_date >= date[1], invoice_date <= date[2])
+      
       return(df)
     })
 
@@ -276,10 +279,10 @@ mod_amex_server <- function(
           n_segment = nrow(main_segment),
           main_seg = main_segment |> filter(row_number() == 1) |> pull(segment),
           main_seg_n = main_segment |> filter(row_number() == 1) |> pull(n),
-          tot_distance_miles = frmt_num(sum(distance_miles)),
-          tot_distance_km = frmt_num(sum(distance_km)),
-          tot_emissions = frmt_num(sum(emission)),
-          emission_km = round(digits = 10, sum(emission) / sum(distance_km))
+          tot_distance_miles = frmt_num(sum(distance_miles, na.rm = TRUE)),
+          tot_distance_km = frmt_num(sum(distance_km, na.rm = TRUE)),
+          tot_emissions = frmt_num(sum(emission, na.rm = TRUE)),
+          emission_km = round(digits = 10, sum(emission, na.rm = TRUE) / sum(distance_km, na.rm = TRUE))
         )
 
       return(dat_summ)
@@ -323,36 +326,38 @@ mod_amex_server <- function(
     # Ratio table  ===========================================
 
     output$ratio_tab <- renderReactable({
+
       dat_year <- amex_ready() |>
+        
         summarise(
           .by = year,
-          emissions = round(sum(emission), digits = 0),
-          spent = sum(gross_amount),
-          tot_km = sum(distance_km),
-          tot_miles = sum(distance_miles),
+          emissions = round(sum(emission, na.rm = TRUE), digits = 0),
+          emissions_kg = emissions * 1000,
+          spent = sum(gross_amount, na.rm = TRUE),
+          tot_km = sum(distance_km, na.rm = TRUE),
+          tot_miles = sum(distance_miles, na.rm = TRUE),
           flights = n(),
           passengers = n_distinct(traveler_name),
-          em_km = format(round(emissions / tot_km, digits = 6), scientific = TRUE),
-          # em_miles = format(round(emissions/tot_miles, digits = 6), scientific = TRUE),
-          em_spent = format(round(emissions / spent, digits = 4), scientific = TRUE),
-          em_flights = round(emissions / flights, digits = 3),
-          em_passengers = round(emissions / passengers, digits = 3)
-        ) |>
+          em_km = round(emissions_kg / tot_km, digits = 2),
+          em_spent = round(emissions_kg / spent, digits = 2),
+          em_flights = round(emissions_kg / flights, digits = 2),
+          em_passengers = round(emissions_kg / passengers, digits = 2)
+        )  |> 
         select(year, emissions, contains("em_"))
 
       dat_tot <- amex_ready() |>
         summarise(
-          emissions = round(sum(emission), digits = 0),
-          spent = sum(gross_amount),
-          tot_km = sum(distance_km),
-          tot_miles = sum(distance_miles),
+          emissions = round(sum(emission, na.rm = TRUE), digits = 0),
+          emissions_kg = emissions * 1000,
+          spent = sum(gross_amount, na.rm = TRUE),
+          tot_km = sum(distance_km, na.rm = TRUE),
+          tot_miles = sum(distance_miles, na.rm = TRUE),
           flights = n(),
           passengers = n_distinct(traveler_name),
-          em_km = format(round(emissions / tot_km, digits = 6), scientific = TRUE),
-          # em_miles = format(round(emissions/tot_miles, digits = 6), scientific = TRUE),
-          em_spent = format(round(emissions / spent, digits = 4), scientific = TRUE),
-          em_flights = round(emissions / flights, digits = 3),
-          em_passengers = round(emissions / passengers, digits = 3)
+          em_km = round(emissions_kg / tot_km, digits = 2),
+          em_spent = round(emissions_kg / spent, digits = 2),
+          em_flights = round(emissions_kg / flights, digits = 2),
+          em_passengers = round(emissions_kg / passengers, digits = 2)
         ) |>
         mutate(year = "Global") |>
         select(year, emissions, contains("em_"))
@@ -366,12 +371,12 @@ mod_amex_server <- function(
         defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
         columns = list(
           year = colDef("Year", align = "left", maxWidth = 55),
-          emissions = colDef("Emissions (kg)", align = "left", maxWidth = 120),
-          em_km = colDef(" per km", align = "left", maxWidth = 80),
+          emissions = colDef("Emissions (tC02e)", align = "left", maxWidth = 120),
+          em_km = colDef("kg CO2e per km", align = "left", maxWidth = 80),
           # em_miles = colDef("per miles", align = "left"),
-          em_spent = colDef("per €", align = "left", maxWidth = 80),
-          em_flights = colDef("per flights", align = "left", maxWidth = 80),
-          em_passengers = colDef("per traveller", align = "left", maxWidth = 90)
+          em_spent = colDef("kg CO2e per €", align = "left", maxWidth = 80),
+          em_flights = colDef("kg CO2e per flights", align = "left", maxWidth = 80),
+          em_passengers = colDef("kg CO2e per traveller", align = "left", maxWidth = 90)
         )
       )
     })
@@ -380,10 +385,11 @@ mod_amex_server <- function(
 
     df_origin <- reactive({
       amex_ready() %>%
+        
         summarise(
           .by = c(ori_city_code, ori_city_name),
-          ori_lon = mean(ori_lon, na.rm = TRUE),
-          ori_lat = mean(ori_lat, na.rm = TRUE),
+          ori_lon = unique(ori_city_lon, na.rm = TRUE),
+          ori_lat = unique(ori_city_lat, na.rm = TRUE),
           n = n()
         ) %>%
         tidyr::drop_na()
@@ -393,8 +399,8 @@ mod_amex_server <- function(
       amex_ready() %>%
         summarise(
           .by = c(dest_city_code, dest_city_name),
-          dest_lon = mean(dest_lon, na.rm = TRUE),
-          dest_lat = mean(dest_lat, na.rm = TRUE),
+          dest_lon = unique(dest_city_lon, na.rm = TRUE),
+          dest_lat = unique(dest_city_lat, na.rm = TRUE),
           n = n()
         ) %>%
         tidyr::drop_na()
@@ -472,10 +478,10 @@ mod_amex_server <- function(
           summarise(
             .by = c(!!group_sym, date_group),
             n_flights = n(),
-            distance_km = round(sum(distance_km), digits = 1),
-            distance_miles = round(sum(distance_miles), digits = 1),
-            gross_amount = round(sum(gross_amount), digits = 1),
-            emission = round(sum(emission), digits = 1)
+            distance_km = round(sum(distance_km, na.rm = TRUE), digits = 1),
+            distance_miles = round(sum(distance_miles, na.rm = TRUE), digits = 1),
+            gross_amount = round(sum(gross_amount, na.rm = TRUE), digits = 1),
+            emission = round(sum(emission, na.rm = TRUE), digits = 1)
           ) %>%
           arrange(date_group) %>%
           mutate(
@@ -572,9 +578,7 @@ mod_amex_server <- function(
           )
         )
     })
-
-
-
+    
     # Boxplot
     output$dist_boxplot <- renderHighchart({
       req(amex_summary())
@@ -582,6 +586,8 @@ mod_amex_server <- function(
       dist_var_sym <- sym(input$display)
 
       date_interval_sym <- sym(input$date_interval)
+      
+      dist_group_var2 <- sym(input$group)
 
       if (input$select_year != "All years") {
         amex_box <- amex_ready() |>
@@ -594,6 +600,7 @@ mod_amex_server <- function(
         amex_box,
         !!dist_var_sym,
         group_var = !!date_interval_sym,
+        #group_var2 = !!dist_group_var2,
         name = names(display_var[display_var == input$display])
         # showInLegend = FALSE
       )
@@ -616,20 +623,21 @@ mod_amex_server <- function(
       bar_var_sym <- sym(input$bar_var)
 
       bar_group_sym <- sym(input$bar_group)
+      
       hc_df <- amex_ready() %>%
         # filter out Nas for group var
         drop_na(!!bar_group_sym) %>%
         summarise(
           .by = c(!!bar_group_sym),
           n_flights = n(),
-          distance_km = sum(distance_km),
-          distance_miles = sum(distance_miles),
-          gross_amount = sum(gross_amount),
-          emission = round(digits = 1, sum(emission))
+          distance_km = sum(distance_km, na.rm = TRUE),
+          distance_miles = sum(distance_miles, na.rm = TRUE),
+          gross_amount = sum(gross_amount, na.rm = TRUE),
+          emission = round(digits = 1, sum(emission, na.rm = TRUE))
         ) %>%
         mutate(
           label = fmt_n(!!bar_var_sym),
-          percent = scales::percent(!!bar_var_sym / sum(!!bar_var_sym), accuracy = .1)
+          percent = scales::percent(!!bar_var_sym / sum(!!bar_var_sym, na.rm = TRUE), accuracy = .1)
         ) %>%
         rename("group_var" = input$bar_group) %>%
         arrange(desc(!!bar_var_sym))
@@ -662,11 +670,11 @@ mod_amex_server <- function(
         summarise(
           .by = c(dest_city_name),
           n_flights = n(),
-          emission = sum(emission),
+          emission = sum(emission, na.rm = TRUE),
           main_org = org[max(n())]
         ) %>%
         mutate(
-          emission_pct = scales::percent(emission / sum(emission)),
+          emission_pct = scales::percent(emission / sum(emission, na.rm = TRUE)),
           emission = fmt_n(emission),
           emission = paste0(emission, " (", emission_pct, ")")
         ) %>%

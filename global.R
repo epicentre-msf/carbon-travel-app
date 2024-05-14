@@ -51,13 +51,14 @@ df_conversion <- read_rds(here::here("data", "clean", "conversion_df.rds"))
 conversion_df <- read_rds(here::here(clean_path, "conversion_df.rds"))
 
 # Get AMEX data
-df_amex <- read_rds(here::here(clean_path, "amex_clean_lon_lat.rds"))
+#df_amex <- read_rds(here::here(clean_path, "amex_clean_lon_lat.rds"))
+df_amex <- read_rds(here::here(clean_path, "full_amex_wagram.rds"))
 
 #load the network 
-net <- read_rds(here::here(clean_path, "amex_network.rds"))
+net <- read_rds(here::here(clean_path, "flights_network.rds"))
 
 # date range
-init_year <- unique(df_amex$year)
+init_year <- sort(unique(df_amex$year))
 init_date_range <- format(seq.Date(min(df_amex$invoice_date), max(df_amex$invoice_date), by = "month"), "%Y-%m")
 min_date <- min(init_date_range)
 max_date <- max(init_date_range)

@@ -10,7 +10,6 @@ group_vars <- c(
   "Mission" = "mission_country_name",
   "HQ/Flying/Mission" = "hq_flying_mission",
   "Reasons for Travel" = "reason_travel",
-  "Flight type" = "flight_type",
   "Flight lenght" = "distance_km_cat"
 )
 
