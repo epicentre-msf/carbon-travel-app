@@ -123,15 +123,15 @@ mod_travel_estim_server <- function(
       #get the shortest path in network for all origin and this destination 
       short_paths <- purrr::map2(df()$start_var, 
                                  df()$end_var, 
-                                 ~ sfnetworks::st_network_paths(net, from = .x, to = .y)
+                                 ~ sfnetworks::st_network_paths(cities_network, from = .x, to = .y)
       )
       
       short_nodes <- unique(unname(unlist(purrr::map( short_paths, ~ .x |> pull(node_paths) |> unlist() ))))
       
       short_edges <- unname(unlist(purrr::map( short_paths, ~ .x |> pull(edge_paths) |> unlist() ) ) )
       
-      nodes <- net |> activate("nodes") |> filter(name %in% short_nodes) |> st_as_sf()
-      edges <- net |> activate("edges") |> slice(short_edges) |> st_as_sf()
+      nodes <- cities_network |> activate("nodes") |> filter(name %in% short_nodes) |> st_as_sf()
+      edges <- cities_network |> activate("edges") |> slice(short_edges) |> st_as_sf()
       
       #quick map
       mapview::mapview(nodes) +

@@ -8,17 +8,9 @@ pacman::p_load(
   lubridate, # date handling
   tidyverse # data science
 )
-
-source(here::here("R", "set_paths.R"))
 source(here::here("R", "utils.R"))
 
 # Set paths -------------------------------------------------------------
-
-paths <- set_paths()
-
-sharepoint_path <- paths$sharepoint_path
-data_path <- get_sp_data_path()
-raw_path <- fs::path(data_path, "raw")
 clean_path <- here::here("data", "clean")
 
 # Import clean data 

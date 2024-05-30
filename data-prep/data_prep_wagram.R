@@ -24,14 +24,13 @@ raw_path <- fs::path(data_path, "raw")
 clean_path <- here::here("data", "clean")
 
 #import amex 
-
 amex <- readRDS(here::here(clean_path, "amex_clean_lon_lat.rds"))
 
 # Import data  -------------------------------------------------------------
 
 # OFFLINE
-path_offline <- here::here("data", "raw")
-raw_path <- path_offline
+#path_offline <- here::here("data", "raw")
+#raw_path <- path_offline
 
 #Import Wagram data 
 wagram_files <- fs::dir_ls(fs::path(raw_path, "wagram-data"), regexp = "Standard")
@@ -105,33 +104,6 @@ w_2020 <- w_df_ls$w_2020 |>
   filter(full_trip != "FRAIS", 
          activite %in% c("AERIEN BSP", "AERIEN HORS BSP", "AERIEN LOW COST"))
 
-# 2021 --------------------------------------------------------------------
-#looks like these data are not with multiple segments in one line
-
-w_df_ls$w_2021 |> names()
-
-w_2021 <- w_df_ls$w_2021 |> 
-  select(
-    org = nom_client,
-    traveler_name = voyageur, 
-    invoice_number = no_de_facture, 
-    #flight_type = zone,
-    #code = code_projet, 
-    invoice_date = date_de_facture, 
-    full_trip = parcours,
-    trip_type = trajet,
-    ori_city_name = origine, 
-    dest_city_name = destination, 
-    dest_country_name = pays_destination, 
-    gross_amount = ttc, 
-    activite2
-  ) |> 
-  #remove frais and rails
-  filter(full_trip != "FRAIS", 
-         activite2 != "AERIEN"
-  ) |> 
-  rename(activite = activite2)
-
 # 2022 --------------------------------------------------------------------
 w_df_ls$w_2022 |> names()
 
@@ -182,7 +154,7 @@ w_2023 <- w_df_ls$w_2023 |>
 
 # Bind all together -------------------------------------------------------
 
-w_raw <- list(w_2019, w_2020, w_2021, w_2022, w_2023) |> bind_rows()
+w_raw <- list(w_2019, w_2020, w_2022, w_2023) |> bind_rows()
 
 # Cleaning ----------------------------------------------------------------
 w_clean <- w_raw |> 
@@ -230,6 +202,53 @@ w_seg <- w_clean |>
          gross_amount = round(digits = 2, gross_amount/n() )
   ) |> 
   select(-c(trip_type, ori_city_name, dest_city_name, dest_country_name))
+
+# 2021 --------------------------------------------------------------------
+#looks like these data are not with multiple segments in one line
+
+w_df_ls$w_2021 |> names()
+
+w_2021 <- w_df_ls$w_2021 |> 
+  select(
+    org = nom_client,
+    traveler_name = voyageur, 
+    invoice_number = no_de_facture, 
+    #flight_type = zone,
+    #code = code_projet, 
+    invoice_date = date_de_facture, 
+    full_trip = parcours,
+    ori = origine, 
+    dest = destination,
+    gross_amount = ttc, 
+    activite = activite2
+  ) |> 
+  #remove frais and rails
+  filter(full_trip != "FRAIS", 
+         activite == "AERIEN"
+  ) |> 
+  
+  mutate(across(c(traveler_name, ori, dest, activite), ~ tolower(.x)), 
+         invoice_date = ymd(invoice_date), 
+         month = floor_date(invoice_date, "month"),
+         month = format(month, "%Y-%m"),
+         quarter = lubridate::quarter(invoice_date, with_year = TRUE),
+         quarter = str_replace(quarter, "\\.", "-Q"),
+         year = floor_date(invoice_date, "year"),
+         year = format(year, "%Y"),
+         across(c(gross_amount), ~ as.numeric(.x)),
+         org = case_match(org, 
+                          "EPICENTRE - BTA" ~ "Epicentre", 
+                          "FONDATION MSF - BTA" ~"Fondation MSF", 
+                          "MEDECINS SANS FRONTIERES - AUSTRALIA" ~"MSF - Australia", 
+                          "MEDECINS SANS FRONTIERES - BTA" ~"OCP", 
+                          "MSF - BUREAU INTERNATIONAL" ~"MSF International", 
+                          "MSF INTERNATIONAL  - SOCS" ~"MSF International", 
+                          "MSF LOGISTIQUE" ~"MSF Logistique"
+         )
+         )
+
+# Add 2021 
+w_seg <- bind_rows(w_seg, w_2021)
 
 # Geocoding ---------------------------------------------------------------
 
@@ -312,8 +331,6 @@ df_w_city <- w_seg |> left_join(select(match_df,
                    country_code = country_code3) |> rename_with(.cols = contains("_"), .fn = ~ paste0("dest_", .x)) |> distinct(dest, .keep_all = TRUE)
   ) |> 
   select(-ori, -dest)
-
-
 
 # Calculate distances  ----------------------------------------------------
 

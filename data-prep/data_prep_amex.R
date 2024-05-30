@@ -39,8 +39,8 @@ clean_path <- here::here("data", "clean")
 # Import data  -------------------------------------------------------------
 
 # OFFLINE
-path_offline <- here::here("data", "raw")
-raw_path <- path_offline
+#path_offline <- here::here("data", "raw")
+#raw_path <- path_offline
 
 # AIR
 air_dir_ls <- fs::dir_ls(fs::path(raw_path, "amex-data"), regexp = "AirEmissions")
@@ -173,7 +173,7 @@ amex_clean <- amex %>%
 # Clean Mission code
 
 # using project codes from OCG 
-project <- import(here::here(path_offline, "FormatedProjectCode.xlsx")) |>
+project <- import(here::here(raw_path, "FormatedProjectCode.xlsx")) |>
   as_tibble() |>
   clean_names()
 

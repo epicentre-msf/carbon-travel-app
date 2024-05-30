@@ -57,6 +57,9 @@ df_amex <- read_rds(here::here(clean_path, "full_amex_wagram.rds"))
 #load the network 
 net <- read_rds(here::here(clean_path, "flights_network.rds"))
 
+#load the distance matrix for all cities
+cities_network <- read_rds(here::here(clean_path, "cities_network.rds"))
+
 # date range
 init_year <- sort(unique(df_amex$year))
 init_date_range <- format(seq.Date(min(df_amex$invoice_date), max(df_amex$invoice_date), by = "month"), "%Y-%m")

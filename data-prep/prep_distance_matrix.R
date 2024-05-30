@@ -22,7 +22,7 @@ pacman::p_load(
   tidyverse # data science
 )
 
-source(here::here("R", "set_paths.R"))
+#source(here::here("R", "set_paths.R"))
 source(here::here("R", "utils.R"))
 
 # Import data -------------------------------------------------------------
@@ -35,7 +35,7 @@ df_airports <- readRDS(here::here("data", "clean", "df_airports.rds"))
 
 conversion_df <- readRDS(here::here("data", "clean", "conversion_df.rds"))
 
-# Create a Network from amex data -----------------------------------------
+# Create a Network from flights data -----------------------------------------
 
 dat <- dat |> 
   
@@ -114,7 +114,6 @@ geosphere::distHaversine(c(-58.4757, -34.6907), c(28.77981, 41.25644) )
 #12259.955
 
 # Divide the matrix by 1000 to get in kilometers 
-
 mat <- mat/1000
 
 units(mat) <-NULL
@@ -122,9 +121,35 @@ units(mat) <-NULL
 #save the matrix
 readr::write_rds(mat, here::here("data", "clean", "distance_matrix.rds"))
 
+# Create a distance Matrix of cities between them (single travel estimation tab) -------------------------
+#need to create a network 
+#get all points (all cities)
+nodes
 
-# Create a distance Matrix of cities between them (single travel estimation tab)-------------------------
+#get all combinations of cities for edges
+edges2 <- expand.grid(nodes$name, nodes$name) |> as_tibble() |> rename("from" = Var1, "to" = Var2)
+
+#create the network
+net2 <- sfnetwork(nodes, edges2, node_key = "name", edges_as_lines = TRUE, directed = FALSE)
+
+# Plot the network 
+mapview::mapview( net2 |> activate("nodes") |> st_as_sf(),
+                  col.regions = "red",
+                  legend = NULL,
+                  layer.name = "nodes" ) +
+  
+  mapview::mapview( net2 |> activate("edges") |> st_as_sf(),
+                    layer.name = "edges")
+
+#save the network
+readr::write_rds(net2, here::here("data", "clean", "cities_network.rds"))
 
 
-
+# mat_all <- geosphere::distm(df_cities[,c('lon','lat')], df_cities[,c('lon','lat')], fun=geosphere::distHaversine)
+# 
+# colnames(mat_all) <- df_cities$city_code
+# rownames(mat_all) <- df_cities$city_code
+# 
+# #save the matrix
+# readr::write_rds(mat_all, here::here("data", "clean", "distance_matrix_all_city.rds"))
 
