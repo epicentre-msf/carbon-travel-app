@@ -6,29 +6,36 @@ mod_amex_ui <- function(id) {
     layout_sidebar(
       fillable = FALSE,
       sidebar = sidebar(
-        width = 300,
         gap = 0,
-        shinyWidgets::sliderTextInput(
-          inputId = ns("date_range"),
-          label = "Time period",
-          choices = init_date_range,
-          selected = c(min_date, max_date),
-          grid = FALSE,
-          animate = FALSE,
-          width = "95%"
-        ),
-        shiny::selectizeInput(
-          inputId = ns("select_org"),
-          label = "Organisation",
-          choices = unique(df_amex$org),
-          multiple = TRUE,
-          options = list(placeholder = "All", plugins = "remove_button")
-        ),
-        div(
-          class = "pt-3",
+        bslib::layout_columns(
+          col_widths = 12,
+          shinyWidgets::sliderTextInput(
+            inputId = ns("date_range"),
+            label = "Time period",
+            choices = init_date_range,
+            selected = c(min_date, max_date),
+            grid = FALSE,
+            animate = FALSE,
+            width = "95%"
+          ),
+          shiny::selectizeInput(
+            inputId = ns("select_org"),
+            label = "Organisation",
+            choices = unique(df_amex$org),
+            multiple = TRUE,
+            options = list(placeholder = "All", plugins = "remove_button")
+          ),
+          bslib::input_task_button(
+            ns("go"),
+            "Filter data",
+            icon = icon("filter"),
+            width = "100%",
+            class = "btn-primary"
+          ),
           shiny::downloadButton(
             outputId = ns("download"),
-            label = "Download data"
+            label = "Download data",
+            width = "100%"
           )
         )
       ),
@@ -163,7 +170,7 @@ mod_amex_ui <- function(id) {
             highcharter::highchartOutput(ns("time_serie"))
           ),
           nav_panel(
-            title = shiny::icon("chart-line"),
+            title = shiny::icon("chart-column"),
             value = "boxplot",
             highcharter::highchartOutput(ns("dist_boxplot"))
           ),
@@ -258,16 +265,17 @@ mod_amex_server <- function(
     amex_ready <- reactive({
       date <- paste0(input$date_range, "-01")
 
-      #browser()
+      # browser()
 
       df <- amex_org() |>
         filter(invoice_date >= date[1], invoice_date <= date[2])
-      
+
       return(df)
-    })
+    }) %>% bindEvent(input$go, ignoreNULL = FALSE)
 
     # Summary amex_ready() for value boxes
     amex_summary <- reactive({
+      req(amex_ready())
       main_segment <- amex_ready() |>
         count(ori_city_name, dest_city_name) |>
         mutate(segment = paste(ori_city_name, dest_city_name, sep = "-")) |>
@@ -385,7 +393,6 @@ mod_amex_server <- function(
 
     df_origin <- reactive({
       amex_ready() %>%
-        
         summarise(
           .by = c(ori_city_code, ori_city_name),
           ori_lon = unique(ori_city_lon, na.rm = TRUE),

@@ -8,80 +8,83 @@ mod_meeting_place_ui <- function(id) {
         width = 300,
         gap = 0,
         mod_origin_input_ui(ns("origin")),
-        h4("Destinations"),
+        h5("Destinations"),
         hr(),
-        shinyWidgets::radioGroupButtons(
-          inputId = ns("msf_all"),
-          label = "All destinations or only MSF ?",
-          choices = c("All" = "all", "MSF" = "msf"),
-          size = "sm",
-          selected = "all",
-          justified = TRUE
-        ),
-        shinyWidgets::pickerInput(
-          inputId = ns("msf_type_select"),
-          label = "MSF type",
-          multiple = TRUE,
-          choices = msf_type_vec,
-          selected = msf_type_vec
-        ),
-        shinyWidgets::virtualSelectInput(
-          inputId = ns("select_dest"),
-          label = tooltip(
-            span(
-              "Destinations",
-              bsicons::bs_icon("info-circle")
-            ),
-            "Select all possible destinations for a meeting"
+        bslib::layout_columns(
+          col_widths = 12,
+          shinyWidgets::radioGroupButtons(
+            inputId = ns("msf_all"),
+            label = "All destinations or only MSF?",
+            choices = c("All" = "all", "MSF" = "msf"),
+            size = "sm",
+            selected = "all",
+            justified = TRUE
           ),
-          choices = NULL,
-          multiple = TRUE,
-          search = TRUE,
-          autoSelectFirstOption = TRUE,
-          placeholder = "Select cities...",
-          position = "bottom",
-          dropboxWrapper = "body",
-          showOptionsOnlyOnSearch = FALSE,
-          optionsCount = 5
-        ),
-        hr(),
-        actionButton(ns("go"), "Get meeting places", width = "100%", class = "btn-primary")
-      ),
-      bslib::card(
-        full_screen = TRUE,
-        bslib::card_header(
-          class = "d-flex align-items-center",
-          "Optimal Meeting locations"
-        ),
-        min_height = "400px",
-        reactableOutput(ns("tbl"))
-      ),
-      bslib::card(
-        bslib::card_header(
-          class = "d-flex align-items-center",
-          "Map of travels",
+          shinyWidgets::pickerInput(
+            inputId = ns("msf_type_select"),
+            label = "MSF type",
+            multiple = TRUE,
+            choices = msf_type_vec,
+            selected = msf_type_vec
+          ),
           shinyWidgets::virtualSelectInput(
-            inputId = ns("map_dest"),
+            inputId = ns("select_dest"),
             label = tooltip(
               span(
-                "Optimal destination",
+                "Filter possible destinations",
                 bsicons::bs_icon("info-circle")
               ),
-              "Select one of the optimal destinations to display"
+              "Select all possible destinations for a meeting. By default all locations are included in the calculation."
             ),
-            selected = 1,
             choices = NULL,
+            multiple = TRUE,
             search = TRUE,
             autoSelectFirstOption = TRUE,
-            placeholder = "Select city...",
+            placeholder = "All cites",
             position = "bottom",
             dropboxWrapper = "body",
             showOptionsOnlyOnSearch = FALSE,
             optionsCount = 5
           )
         ),
-        min_height = "550px",
-        leaflet::leafletOutput(ns("map"))
+        hr(),
+        bslib::input_task_button(
+          ns("go"),
+          "Get meeting places",
+          label_busy = "Calculating...",
+          width = "100%",
+          class = "btn-primary"
+        )
+      ),
+      bslib::layout_columns(
+        col_widths = 12,
+        row_heights = c(2, 3),
+        gap = 5,
+        bslib::card(
+          full_screen = TRUE,
+          # min_height = 300,
+          bslib::card_header(
+            class = "d-flex align-items-center",
+            bslib::card_title("Optimal Meeting locations")
+          ),
+          bslib::card_body(
+            padding = 0,
+            reactableOutput(ns("tbl"))
+          )
+        ),
+        bslib::card(
+          full_screen = TRUE,
+          # min_height = 400,
+          bslib::card_header(
+            class = "d-flex",
+            bslib::card_title("Map of travels", class = "pe-2"),
+            uiOutput(ns("dest_text"))
+          ),
+          bslib::card_body(
+            padding = 0,
+            leaflet::leafletOutput(ns("map"))
+          )
+        )
       )
     )
   )
@@ -96,6 +99,11 @@ mod_meeting_place_server <- function(
 ) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    observe({
+      cond <- input$msf_all == "msf"
+      shinyjs::toggle("msf_type_select", condition = cond, anim = TRUE)
+    })
     
     df_origin <- mod_origin_input_server("origin", orig_cities)
     
@@ -129,8 +137,13 @@ mod_meeting_place_server <- function(
       ntf <- showNotification("Calculating optimal meeting locations", duration = NULL, type = "warning")
       on.exit(removeNotification(ntf))
       
-      #final selection of destinations using the picket inputs
-      dest_cities <- dest_fil() |> filter(city_code %in% input$select_dest) |> pull(city_code)
+      # final selection of destinations using the picker inputs
+      dest_cities <- dest_fil()
+      # filter to selected cities if not empty
+      if (length(input$select_dest)) {
+        dest_cities <- dest_cities |> filter(city_code %in% input$select_dest)
+      }
+      dest_cities <- dest_cities |> pull(city_code)
       
       # Map the function over all possible destinations
       all_dest <- purrr::map(
@@ -187,10 +200,13 @@ mod_meeting_place_server <- function(
     orange_pal <- function(x) rgb(colorRamp(c("#B8CCAD", "#BF6C67"))(x), maxColorValue = 255)
     
     output$tbl <- reactable::renderReactable({
+      validate(
+        need(input$go > 0, "Select origins and destinations (optional) then click 'Get meeting places' to see results.")
+      )
       req(df_dists())
       
       df <- df_dists() |>
-        select(-c(city_code, city_lon, city_lat)) |>
+        select(-c(city_lon, city_lat)) |>
         head(50)
       
       reactable(
@@ -198,9 +214,13 @@ mod_meeting_place_server <- function(
         highlight = TRUE,
         searchable = TRUE,
         compact = TRUE,
+        pagination = FALSE,
+        rowStyle = list(cursor = "pointer"), 
+        onClick = rt_get_city_code(id = ns("rt_city_code")),
         defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
         columns = list(
           rank = colDef("Rank", align = "left", maxWidth = 50),
+          city_code = colDef(show = FALSE),
           city_name = colDef("City", align = "left", maxWidth = 150),
           country_name = colDef("Country", align = "left", maxWidth = 150),
           grand_tot_km = colDef("Total Km", align = "left", format = colFormat(digits = 0), maxWidth = 150),
@@ -222,21 +242,42 @@ mod_meeting_place_server <- function(
     })
     
     # Map  =========================================================================
+
+    map_dest <- reactiveVal()
+    # when new locations are calculated update map dest to rank 1 city
+    observe({
+      req(df_dists())
+      md <- df_dists() %>%
+        filter(rank == 1) %>%
+        pull(city_code)
+      map_dest(md)
+    })
+    # when a row in the table is clicked update map dest with that city code
+    observe({
+      req(input$rt_city_code)
+      map_dest(input$rt_city_code)
+    })
     
     # update choices of input
     
-    observeEvent(df_dists(), {
-      choices <- df_dists() |>
-        shinyWidgets::prepare_choices(
-          label = city_name,
-          value = city_code,
-          group_by = country_name
-        )
-      shinyWidgets::updateVirtualSelect("map_dest", choices = choices)
+    # observeEvent(df_dists(), {
+    #   choices <- df_dists() |>
+    #     shinyWidgets::prepare_choices(
+    #       label = city_name,
+    #       value = city_code,
+    #       group_by = country_name
+    #     )
+    #   shinyWidgets::updateVirtualSelect("map_dest", choices = choices)
+    # })
+
+    output$dest_text <- renderUI({
+      req(map_dest())
+      city_name <- dest[dest$city_code == map_dest(), "city_name", drop = TRUE]
+      tags$p("Destination: ", tags$b(city_name), tags$small("  (click a row in the table above to change the destination)"))
     })
     
     output$map <- leaflet::renderLeaflet({
-      req(input$map_dest)
+      req(map_dest())
       
       pal <- colorFactor(c("darkred", "steelblue"), c("destination", "origin"))
       
@@ -244,7 +285,7 @@ mod_meeting_place_server <- function(
       map_ori <- df_origin() |> left_join(dest, by = join_by(origin_id == city_code))
       
       # destination selected
-      map_dest <- input$map_dest
+      map_dest <- map_dest()
       
       # get the shortest path in network for all origin and this destination
       short_paths <- purrr::map(
@@ -275,24 +316,24 @@ mod_meeting_place_server <- function(
         leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) |>
         leaflet.extras::addFullscreenControl(position = "topleft") |>
         leaflet.extras::addResetMapButton() |>
-        leaflet::addCircleMarkers(
-          data = nodes,
-          lng = ~lon,
-          lat = ~lat,
-          radius = 7,
-          color = ~"white",
-          fillOpacity = 0.8,
-          weight = 1,
-          fillColor = ~ pal(type),
-          label = ~city_name
-        ) |>
         leaflet::addPolylines(data = edges) |>
         addLegend(
           position = "topright",
           pal = pal,
           values = unique(nodes$type)
+        ) |>
+        leaflet::addCircleMarkers(
+          data = nodes,
+          lng = ~lon,
+          lat = ~lat,
+          radius = 10,
+          color = ~"white",
+          fillOpacity = 1,
+          weight = 1,
+          fillColor = ~ pal(type),
+          label = ~city_name
         )
-    })
+    }) %>% bindEvent(map_dest(), df_dists())
   })
 }
 

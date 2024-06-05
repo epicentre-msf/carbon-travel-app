@@ -1,12 +1,8 @@
 mod_origin_input_ui <- function(id) {
   ns <- NS(id)
   tagList(
-    shinyjs::useShinyjs(),
-    
-    h4("Origins"),
-    
+    h5("Origins"),
     hr(),
-    
     div(
       id = ns("inputs"),
       city_input(
@@ -65,12 +61,7 @@ mod_origin_input_server <- function(id, cities) {
       insertUI(
         selector = paste0("#", ns("inputs")),
         where = "beforeEnd",
-        ui = city_input(ns, 
-                        index, 
-                        choices = cities
-                        
-        )
-        # ui = city_input(ns, input$add + 2, cities)
+        ui = city_input(ns, index, choices = cities)
       )
       n_inputs(index)
     })
@@ -82,7 +73,6 @@ mod_origin_input_server <- function(id, cities) {
     })
     
     df_origin <- reactive({
-      #index <- input$add + 2
       index <- n_inputs()
       req(input[[paste0("n", index)]])
       selected_cities <- purrr::map_chr(1:index, ~ input[[paste0("p", .x)]])

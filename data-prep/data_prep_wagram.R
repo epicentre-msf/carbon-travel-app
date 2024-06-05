@@ -8,7 +8,8 @@ pacman::p_load(
   here, # create relative paths
   janitor, # data cleaning
   lubridate, # date handling
-  tidyverse # data science
+  tidyverse, # data science
+  spatialrisk
 )
 
 source(here::here("R", "set_paths.R"))

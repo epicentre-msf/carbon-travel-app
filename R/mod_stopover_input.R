@@ -2,7 +2,7 @@ mod_stopover_input_ui <- function(id) {
   ns <- NS(id)
   tagList(
     shinyjs::useShinyjs(),
-    h4("Stop-overs"),
+    h5("Itinerary"),
     hr(),
     div(
       id = ns("inputs"),
@@ -10,7 +10,7 @@ mod_stopover_input_ui <- function(id) {
         ns,
         index = 1,
         city_lab = tooltip(
-          span("City stop-over", bsicons::bs_icon("info-circle")),
+          span("Origin, Stop-overs & Destination", bsicons::bs_icon("info-circle")),
           "Input cities travelled to"
         )
       ),

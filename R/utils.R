@@ -47,3 +47,15 @@ force_reactive <- function(x) {
 calc_radius <- function(n, scale_factor = 30) {
   sqrt(n) / sqrt(max(n)) * scale_factor
 }
+
+rt_get_city_code <- function(id) {
+  reactable::JS(sprintf("
+  function(rowInfo, colInfo) {
+    // Send the click event to Shiny, which will be available at input$query_select
+    if (window.Shiny) {
+      var cc = rowInfo.row['city_code'];
+      Shiny.setInputValue('%s', cc);
+    }
+  }
+", id))
+}

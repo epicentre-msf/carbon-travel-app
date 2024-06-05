@@ -2,11 +2,12 @@ ui <- tagList(
   tags$head(
     tags$style("
     body {background-color: #f7f7f7;}
+    .vb .card-body {padding: 5px !important;} 
     .value-box-area {padding: 0 !important;}
+    .selectize-dropdown, .selectize-input, .form-control {font-size: 0.8rem !important;}
     "),
     shinyjs::useShinyjs(),
     waiter::use_waiter()
-    # sever::useSever()
   ),
   page_navbar(
     title = app_title,
@@ -25,7 +26,7 @@ ui <- tagList(
     # nav images and links
     nav_spacer(),
     nav_item( tags$a(
-      "Designed by EpiDS",
+      "Developed by EpiDS",
       href = "https://epicentre-msf.github.io/gallery/",
       target = "_blank"
     )),
