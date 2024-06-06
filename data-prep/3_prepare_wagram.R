@@ -372,6 +372,7 @@ country_codes <- import(here::here(raw_path, "project_codes", "OCP_201810_code_p
     pays_projet = case_match(pays_projet, 
                              "rca" ~ "central african republic", 
                              "rdc" ~"democratic republic of congo",
+                             "papouasie n.g." ~"Papua New Guinea",
                              .default = pays_projet), 
     mission_country_iso = countrycode::countrycode(pays_projet, "country.name", "iso3c"), 
     mission_country_iso = case_when(
@@ -380,7 +381,7 @@ country_codes <- import(here::here(raw_path, "project_codes", "OCP_201810_code_p
       pays_projet == "georgie" ~ "GEO",
       pays_projet == "liban" ~ "LBN",
       pays_projet == "libye" ~ "LBY",
-      pays_projet == "papouasie n.g." ~ "PNG",
+      pays_projet == "Papua New Guinea" ~ "PNG",
       pays_projet == "russie" ~ "RUS",
       pays_projet == "somalie" ~ "SOM",
       pays_projet == "sud-soudan" ~ "SSD",

@@ -69,7 +69,7 @@ mod_amex_ui <- function(id) {
           theme = "primary",
           class = "vb",
           value = textOutput(ns("emission")),
-          #uiOutput(ns("emission_info"))
+          uiOutput(ns("emission_info"))
         ),
         value_box(
           title = "Routes",
@@ -310,8 +310,10 @@ mod_amex_server <- function(
           main_seg = main_segment |> filter(row_number() == 1) |> pull(segment),
           main_seg_n = main_segment |> filter(row_number() == 1) |> pull(n),
           tot_distance_miles = frmt_num(sum(distance_miles, na.rm = TRUE)),
-          tot_distance_km = frmt_num(sum(distance_km, na.rm = TRUE)),
-          tot_emissions = frmt_num(sum(emission, na.rm = TRUE)),
+          tot_distance_km = round(digits = 2, sum(distance_km, na.rm = TRUE) ),
+          tot_distance_km_fmt = frmt_num(tot_distance_km),
+          tot_emissions = round(digits = 2, sum(emission, na.rm = TRUE)),
+          tot_emissions_fmt = frmt_num(tot_emissions),
           emission_km = round(digits = 10, sum(emission, na.rm = TRUE) / sum(distance_km, na.rm = TRUE))
         )
       
@@ -333,25 +335,24 @@ mod_amex_server <- function(
     
     output$dist <- renderText({
       req(amex_summary())
-      paste(amex_summary()$tot_distance_km, " km")
+      paste(amex_summary()$tot_distance_km_fmt, " km")
     })
     
     output$dist_info <- renderUI({
+      
       req(amex_summary())
-      tags$small(glue::glue("{amex_summary()$tot_distance_miles} miles"))
+      tags$small(glue::glue("{fmt_n(amex_summary()$tot_distance_km/40000)} times the Earth's circumference !"))
     })
     
     output$emission <- renderText({
       req(amex_summary())
-      paste(amex_summary()$tot_emissions, " tCO2e")
+      paste(amex_summary()$tot_emissions_fmt, " tCO2e")
     })
     
-    output$emission_info <- renderText({
+    output$emission_info <- renderUI({
       req(amex_summary())
-      
-      paste(amex_summary()$emission_km, "tCO2e per Km")
+      tags$small(glue::glue("{fmt_n(amex_summary()$tot_emissions * 0.013 )} tanker trucks worth of gasoline !"))
     })
-    
     
     # Ratio table  ===========================================
     

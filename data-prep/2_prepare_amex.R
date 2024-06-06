@@ -182,6 +182,7 @@ project_clean <- project |>
     number = str_to_lower(str_squish(number)),
     country_code = str_to_lower(str_squish(country_code)),
     country_code = if_else(country_name == "International" | country_name == "Switzerland", NA, country_code),
+    country_name = if_else(country_name == "International" | country_name == "Switzerland", NA, country_name),
     hq_flying_mission = str_to_lower(hq_flying_mission),
     hq_flying_mission = case_match(
       hq_flying_mission,
@@ -413,3 +414,19 @@ df_amex_clean_lon_lat <- df_amex_clean_lon_lat |>
   )
 
 write_rds(df_amex_clean_lon_lat, fs::path(clean_path, "amex_clean_lon_lat.rds"))
+
+
+
+df_amex_clean_lon_lat |> count(mission_country_name) |> arrange(desc(n))
+
+
+
+
+
+
+
+
+
+
+
+
