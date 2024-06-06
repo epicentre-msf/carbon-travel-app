@@ -173,7 +173,7 @@ amex_clean <- amex %>%
 # Clean Mission code
 
 # using project codes from OCG 
-project <- import(here::here(raw_path, "FormatedProjectCode.xlsx")) |>
+project <- import(here::here(raw_path, "project_codes", "OCG_FormatedProjectCode.xlsx")) |>
   as_tibble() |>
   clean_names()
 
@@ -181,7 +181,7 @@ project_clean <- project |>
   mutate(
     number = str_to_lower(str_squish(number)),
     country_code = str_to_lower(str_squish(country_code)),
-    country_code = if_else(country_name == "International", "int", country_code),
+    country_code = if_else(country_name == "International" | country_name == "Switzerland", NA, country_code),
     hq_flying_mission = str_to_lower(hq_flying_mission),
     hq_flying_mission = case_match(
       hq_flying_mission,
@@ -235,13 +235,6 @@ amex_clean <- amex_clean |>
   left_join(country_codes, by = join_by(mission_country_code)) |>
   select(-c(normal_flag, mission_country_code))
 
-# Make sure this only works on OCG
-# amex_clean |> filter(!is.na(code)) |> count(org)
-# 
-# project_clean |> filter(number == "lb904")
-# 
-# amex_clean |> filter(!is.na(hq_flying_mission), org == "OCB") |> pull(code)
-# 
 # Calculate the distance between cities and compare with AMEX dist --------
 # Amex uses terrestrial miles
 # can't compare distance yet

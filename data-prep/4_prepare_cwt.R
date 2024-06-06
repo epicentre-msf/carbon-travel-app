@@ -1,4 +1,4 @@
-# Data prep for Wagram 
+# Data prep for CWT 
 
 # Load packages ---------------------------
 
@@ -33,7 +33,8 @@ amex <- readRDS(here::here(clean_path, "amex_clean_lon_lat.rds"))
 #path_offline <- here::here("data", "raw")
 #raw_path <- path_offline
 
-#Import Wagram data 
+#Import CWT data 
+
 wagram_files <- fs::dir_ls(fs::path(raw_path, "wagram-data"), regexp = "Standard")
 
 w_df_ls <- lapply(wagram_files, rio::import)
