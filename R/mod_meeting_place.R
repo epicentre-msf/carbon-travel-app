@@ -223,11 +223,16 @@ mod_meeting_place_server <- function(
           city_code = colDef(show = FALSE),
           city_name = colDef("City", align = "left", maxWidth = 150),
           country_name = colDef("Country", align = "left", maxWidth = 150),
-          grand_tot_km = colDef("Total Km", align = "left", format = colFormat(digits = 0), maxWidth = 150),
+          grand_tot_km = colDef(
+            "Total Km",
+            align = "left",
+            format = colFormat(separators = TRUE, locales = "fr-Fr", digits = 0),
+            maxWidth = 150
+          ),
           grand_tot_emission = colDef(
             "Total Emissions (kg CO2e)",
             align = "left",
-            format = colFormat(digits = 0),
+            format = colFormat(separators = TRUE, locales = "fr-Fr", digits = 0),
             maxWidth = 150,
             style = if(nrow(df) >1) { function(value) {
               normalized <- (value - min(df$grand_tot_emission)) / (max(df$grand_tot_emission) - min(df$grand_tot_emission) +1)

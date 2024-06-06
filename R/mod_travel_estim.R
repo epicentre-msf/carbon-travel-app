@@ -105,7 +105,7 @@ mod_travel_estim_server <- function(id,
           end_city = colDef("End city", align = "left"),
           distance_km = colDef("Segment distance (Km)",
             align = "left",
-            format = colFormat(digits = 0),
+            format = colFormat(separators = TRUE, locales = "fr-Fr", digits = 0),
             footer = function(values) {
               htmltools::tags$b(sprintf("%.0f km", sum(values)))
             }
@@ -113,7 +113,7 @@ mod_travel_estim_server <- function(id,
           trip_emissions = colDef(
             "Segment Emissions (kg CO2e)",
             align = "left",
-            format = colFormat(digits = 0),
+            format = colFormat(separators = TRUE, locales = "fr-Fr", digits = 0),
             footer = function(values) {
               htmltools::tags$b(sprintf("%.0f kgCO2e", sum(values)))
             },

@@ -243,19 +243,14 @@ mod_amex_server <- function(
 
     # Filter Organisation anc contract type
     amex_org <- reactive({
-      
+      df_out <- df_amex
       if (length(input$select_org)) {
-        df <- df_amex %>% filter(org %in% input$select_org)
-      } else {
-        df <- df_amex
-      }
-      
+        df_out <- df_out %>% filter(org %in% input$select_org)
+      } 
       if (length(input$select_type)) {
-        df <- df %>% filter(hq_flying_mission %in% input$select_type)
-      } else {
-        df <- df
-      }
-      
+        df_out <- df_out %>% filter(hq_flying_mission %in% input$select_type)
+      } 
+      df_out
     })
     
     # # Filter HQ/flying/Mission
@@ -268,28 +263,28 @@ mod_amex_server <- function(
     # })
 
     # Update Reasons and Date Input depending on select_org
-    observeEvent(
-      input$select_org,
-      ignoreNULL = FALSE,
-      {
-        min_date <- min(amex_org()$invoice_date)
-        max_date <- max(amex_org()$invoice_date)
+    # observeEvent(
+    #   input$select_org,
+    #   ignoreNULL = FALSE,
+    #   {
+    #     min_date <- min(amex_org()$invoice_date)
+    #     max_date <- max(amex_org()$invoice_date)
 
-        date_seq <- format(seq.Date(min_date, max_date, by = "month"), "%Y-%m")
+    #     date_seq <- format(seq.Date(min_date, max_date, by = "month"), "%Y-%m")
 
-        shinyWidgets::updateSliderTextInput(
-          session = session,
-          inputId = "date_range",
-          choices = date_seq
-        )
-      }
-    )
+    #     shinyWidgets::updateSliderTextInput(
+    #       session = session,
+    #       inputId = "date_range",
+    #       choices = date_seq
+    #     )
+    #   }
+    # )
 
     # Filter amex_org with date and reason value
     amex_ready <- reactive({
-      date <- paste0(input$date_range, "-01")
-
-      # browser()
+      date <- as.Date(paste0(input$date_range, "-01"))
+      # move date[2] to last day of month to capture everything in that month
+      date[2] <- ceiling_date(date[2], unit = "month") - days(1)
 
       df <- amex_org() |>
         filter(invoice_date >= date[1], invoice_date <= date[2])
@@ -487,10 +482,16 @@ mod_amex_server <- function(
 
     # Time-Series ===========================================
 
-    output$time_serie <- renderHighchart({
-      
-      validate(need(nrow(amex_summary()) > 0, "No data available"))
-    
+    # Prepare data
+    hc_df <- reactive({
+      y_var <- sym(input$display)
+
+      if (input$select_year != "All years") {
+        df <- amex_ready() |>
+          filter(year == input$select_year)
+      } else {
+        df <- amex_ready()
+      }
 
       # Set filters
       if (input$group != "no grouping") {
@@ -499,43 +500,45 @@ mod_amex_server <- function(
         group_sym <- NULL
       }
 
-      # Prepare data
-      hc_df <- reactive({
-        y_var <- sym(input$display)
-        
-        if (input$select_year != "All years") {
-          df <- amex_ready() |>
-            filter(year == input$select_year)
-        } else {
-          df <- amex_ready()
-        }
+      df_hist <- df %>%
+        rename("date_group" = input$date_interval) %>%
+        mutate(date_group = fct_relevel(as.character(date_group))) %>%
+        summarise(
+          .by = c(!!group_sym, date_group),
+          n_flights = n(),
+          distance_km = round(sum(distance_km, na.rm = TRUE), digits = 1),
+          distance_miles = round(sum(distance_miles, na.rm = TRUE), digits = 1),
+          gross_amount = round(sum(gross_amount, na.rm = TRUE), digits = 1),
+          emission = round(sum(emission, na.rm = TRUE), digits = 1)
+        ) %>%
+        arrange(date_group) %>%
+        mutate(
+          lab = fmt_n(!!y_var),
+          n_c = cumsum(!!y_var)
+        )
 
-        df_hist <- df %>%
-          rename("date_group" = input$date_interval) %>%
-          mutate(date_group = fct_relevel(as.character(date_group))) %>%
-          summarise(
-            .by = c(!!group_sym, date_group),
-            n_flights = n(),
-            distance_km = round(sum(distance_km, na.rm = TRUE), digits = 1),
-            distance_miles = round(sum(distance_miles, na.rm = TRUE), digits = 1),
-            gross_amount = round(sum(gross_amount, na.rm = TRUE), digits = 1),
-            emission = round(sum(emission, na.rm = TRUE), digits = 1)
-          ) %>%
-          arrange(date_group) %>%
-          mutate(
-            lab = fmt_n(!!y_var),
-            n_c = cumsum(!!y_var)
-          )
+      return(df_hist)
+    })
 
-        return(df_hist)
-      })
+    output$time_serie <- renderHighchart({
+      
+      validate(need(nrow(hc_df()) > 0, "No data available"))
+    
+      # Set filters
+      if (input$group != "no grouping") {
+        group_sym <- sym(input$group)
+      } else {
+        group_sym <- NULL
+      }
 
       n_var <- dplyr::if_else(input$cumulative, "n_c", input$display)
+      n_lab <- names(display_var[display_var == input$display])
 
       if (input$group == "no grouping") {
         base_hc <- hchart(
           hc_df(),
           "column",
+          name = n_lab,
           hcaes(
             x = date_group,
             y = !!sym(n_var)
@@ -557,17 +560,18 @@ mod_amex_server <- function(
       base_hc |>
         hc_xAxis(
           title = list(text = str_to_sentence(input$date_interval)),
-          categories = levels(hc_df()$date_group)
+          categories = levels(hc_df()$date_group),
+          crosshair = TRUE
         ) |>
-        hc_yAxis(title = list(text = names(display_var[display_var == input$display]))) |>
+        hc_yAxis(title = list(text = n_lab)) |>
         hc_tooltip(
-          useHTML = TRUE,
-          formatter = JS("
-      function(){
-      outHTML =  '<i>' + this.point.date_group +'</i><b><br>' + this.point.lab + '</b>'
-       return(outHTML)
-
-       }")
+          shared = TRUE
+          # useHTML = TRUE,
+          # formatter = JS("
+          # function(){
+          #   outHTML =  '<i>' + this.point.date_group +'</i><b><br>' + this.point.lab + '</b>'
+          #   return(outHTML)
+          # }")
         )
     })
 
@@ -589,7 +593,7 @@ mod_amex_server <- function(
     # Histograms
     output$dist_hist <- renderHighchart({
       
-      validate(need(nrow(amex_summary()) > 0, "No data available"))
+      validate(need(nrow(amex_ready()) > 0, "No data available"))
 
       dist_var_sym <- sym(input$dist_var)
 
@@ -621,7 +625,7 @@ mod_amex_server <- function(
     # Boxplot
     output$dist_boxplot <- renderHighchart({
       
-      validate(need(nrow(amex_summary()) > 0, "No data available"))
+      validate(need(nrow(amex_ready()) > 0, "No data available"))
 
       dist_var_sym <- sym(input$display)
 
@@ -693,14 +697,22 @@ mod_amex_server <- function(
           y = !!bar_var_sym
         )
       ) %>%
+        hc_chart(
+          scrollablePlotArea = list(minHeight = 20 * n_distinct(hc_df$group_var))
+        ) %>%
         hc_yAxis(title = list(text = names(display_var[display_var == input$bar_var]))) %>%
-        hc_xAxis(title = list(text = names(bar_group[bar_group == input$bar_group]))) %>%
+        hc_xAxis(
+          title = list(text = names(bar_group[bar_group == input$bar_group])),
+          labels = list(step = 1),
+          tickInterval = 1,
+          crosshair = TRUE
+        ) %>%
         hc_tooltip(
           useHTML = TRUE,
           formatter = JS("
           function(){
-          outHTML =  '<i>' + this.point.group_var + '</i> <br> <b>' + this.point.label + ' (' + this.point.percent + ')</b>'
-          return(outHTML)
+            outHTML =  '<i>' + this.point.group_var + '</i> <br> <b>' + this.point.label + ' (' + this.point.percent + ')</b>'
+            return(outHTML)
           }")
         ) %>%
         hc_chart(inverted = TRUE)
@@ -709,6 +721,7 @@ mod_amex_server <- function(
     # GEO TABLE ==========================================
 
     output$table <- renderReactable({
+      validate(need(nrow(amex_ready()) > 0, "No data available"))
       geo_tab <- amex_ready() %>%
         summarise(
           .by = c(dest_city_name),
@@ -730,7 +743,7 @@ mod_amex_server <- function(
         highlight = TRUE,
         searchable = TRUE,
         compact = TRUE,
-        defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
+        defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE)),
         columns = list(
           dest_city_name = colDef("Destination", align = "left"),
           n_flights = colDef("N Flights"),
@@ -749,10 +762,10 @@ mod_amex_server <- function(
         } else {
           "_All-org"
         }
-        paste0("amex_data_", dates, org, ".csv")
+        paste0("amex_data_", dates, org, ".xlsx")
       },
       content = function(file) {
-        write.csv(amex_ready(), file)
+        qxl::qxl(amex_ready(), file)
       }
     )
   })
