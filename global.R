@@ -29,7 +29,7 @@ is_sp_env <- sp_path != ""
 # Get the distance matrix
 mat <- read_rds(here::here(clean_path, "distance_matrix.rds"))
 
-#all possible destinations 
+#all possible destinations
 dest <- read_rds(here::here(clean_path, "dest_cities.rds"))
 
 orig_cities <- dest |>
@@ -38,7 +38,7 @@ orig_cities <- dest |>
     value = city_code,
     group_by = country_name
   )
-    
+
 # get the air_msf data
 msf <- read_rds(here::here(clean_path, "unique_msf_clean.rds"))
 

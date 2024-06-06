@@ -25,6 +25,13 @@ mod_amex_ui <- function(id) {
             multiple = TRUE,
             options = list(placeholder = "All", plugins = "remove_button")
           ),
+          shiny::selectizeInput(
+            inputId = ns("select_type"),
+            label = "Contract type",
+            choices = unique(df_amex$hq_flying_mission),
+            multiple = TRUE,
+            options = list(placeholder = "All", plugins = "remove_button")
+          ),
           bslib::input_task_button(
             ns("go"),
             "Filter data",
@@ -234,14 +241,31 @@ mod_amex_server <- function(
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # Prepare Amex data
+    # Filter Organisation anc contract type
     amex_org <- reactive({
+      
       if (length(input$select_org)) {
-        df_amex %>% filter(org %in% input$select_org)
+        df <- df_amex %>% filter(org %in% input$select_org)
       } else {
-        df_amex
+        df <- df_amex
       }
+      
+      if (length(input$select_type)) {
+        df <- df %>% filter(hq_flying_mission %in% input$select_type)
+      } else {
+        df <- df
+      }
+      
     })
+    
+    # # Filter HQ/flying/Mission
+    # amex_org <- reactive({
+    #   if (length(input$select_type)) {
+    #     df_amex %>% filter(hq_flying_mission %in% input$select_type)
+    #   } else {
+    #     df_amex
+    #   }
+    # })
 
     # Update Reasons and Date Input depending on select_org
     observeEvent(
@@ -392,6 +416,7 @@ mod_amex_server <- function(
     # Map  ===========================================
 
     df_origin <- reactive({
+    
       amex_ready() %>%
         summarise(
           .by = c(ori_city_code, ori_city_name),
@@ -414,6 +439,10 @@ mod_amex_server <- function(
     })
 
     output$map <- leaflet::renderLeaflet({
+      
+      
+      validate(need(nrow(df_origin()) > 0, "No data available"))
+      
       leaflet::leaflet() %>%
         leaflet::setView(0, 10, zoom = 2) %>%
         leaflet::addMapPane(name = "circles", zIndex = 410) %>%
@@ -459,7 +488,9 @@ mod_amex_server <- function(
     # Time-Series ===========================================
 
     output$time_serie <- renderHighchart({
-      req(amex_summary())
+      
+      validate(need(nrow(amex_summary()) > 0, "No data available"))
+    
 
       # Set filters
       if (input$group != "no grouping") {
@@ -557,7 +588,8 @@ mod_amex_server <- function(
 
     # Histograms
     output$dist_hist <- renderHighchart({
-      req(amex_summary())
+      
+      validate(need(nrow(amex_summary()) > 0, "No data available"))
 
       dist_var_sym <- sym(input$dist_var)
 
@@ -588,7 +620,8 @@ mod_amex_server <- function(
     
     # Boxplot
     output$dist_boxplot <- renderHighchart({
-      req(amex_summary())
+      
+      validate(need(nrow(amex_summary()) > 0, "No data available"))
 
       dist_var_sym <- sym(input$display)
 
@@ -627,6 +660,9 @@ mod_amex_server <- function(
 
     # Global parts ========================================
     output$barplot <- renderHighchart({
+      
+      validate(need(nrow(amex_ready()) > 0, "No data available"))
+      
       bar_var_sym <- sym(input$bar_var)
 
       bar_group_sym <- sym(input$bar_group)
