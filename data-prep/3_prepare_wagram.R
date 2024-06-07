@@ -287,17 +287,17 @@ unmatch <- match_df |> filter(is.na(ref_name)) |> select(name, city_code)
 choices <- df_cities |>
   select(city_code, city_name) 
 
-if (!file.exists(fs::path("data-prep", "output", "unmatched_city.xlsx"))) {
+if (!file.exists(fs::path("data-prep", "output", "unmatched_city_wagram.xlsx"))) {
   
   # save as excel to mnaually create a dict
   qxl::qxl(
     unmatch,
-    file = fs::path("data-prep", "output", "unmatched_city.xlsx")
+    file = fs::path("data-prep", "output", "unmatched_city_wagram.xlsx")
   ) 
 }
 
 # import excel file and match with dict
-man_df <- import(fs::path("data-prep", "output", "unmatched_city.xlsx"))
+man_df <- import(fs::path("data-prep", "output", "unmatched_city_wagram.xlsx"))
 
 match_df <- hmatch::hmatch_composite(
   raw_df, 

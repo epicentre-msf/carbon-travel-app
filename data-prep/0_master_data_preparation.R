@@ -14,7 +14,7 @@ source(here::here("data-prep", "3_prepare_wagram.R"))
 
 #4. Prepare CWT data
 
-#source(here::here("data-prep", "4_prepare_cwt.R"))
+source(here::here("data-prep", "4_prepare_cwt.R"))
 
 #5. Bind together all flights data
 

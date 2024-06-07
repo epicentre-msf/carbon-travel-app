@@ -114,8 +114,8 @@ amex_clean <- amex %>%
     ),
     reason_travel = case_match(
       reason_travel,
-      "r01" ~ "Field project/briefing",
-      "ro1" ~ "Field project/briefing",
+      "r01" ~ "Field project briefing",
+      "ro1" ~ "Field project briefing",
       "r02" ~ "Training",
       "r03" ~ "Field project visit",
       "r04" ~ "MSF meeting",
