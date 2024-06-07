@@ -60,8 +60,7 @@ w_2019 <- w_df_ls$w_2019 |>
     org = nom_client,
     traveler_name = voyageur, 
     invoice_number = no_de_facture, 
-    #flight_type = zone, 
-    #code = code_projet, 
+    code = code_projet, 
     invoice_date = date_de_facture, 
     full_trip = parcours,
     trip_type = trajet,
@@ -86,8 +85,7 @@ w_2020 <- w_df_ls$w_2020 |>
     org = nom_client,
     traveler_name = voyageur, 
     invoice_number = no_de_facture, 
-    #flight_type = zone,
-    #code = code_projet, 
+    code = code_projet, 
     invoice_date = date_de_facture, 
     full_trip = parcours,
     trip_type = trajet,
@@ -119,7 +117,7 @@ w_2022 <- w_df_ls$w_2022 |>
          dest_city_name = ville_destination, 
          dest_country_name = pays_destination, 
          gross_amount = montant_ttc, 
-         #code = code_projet, 
+         code = a3, 
          contains("par_sg"), 
          activite
   ) |>  
@@ -143,7 +141,7 @@ w_2023 <- w_df_ls$w_2023 |>
          dest_city_name = ville_destination, 
          dest_country_name = pays_destination, 
          gross_amount = montant_ttc, 
-         #code = code_projet, 
+         code = a3, 
          contains("par_sg"), 
          activite 
   ) |> 
@@ -214,8 +212,7 @@ w_2021 <- w_df_ls$w_2021 |>
     org = nom_client,
     traveler_name = voyageur, 
     invoice_number = no_de_facture, 
-    #flight_type = zone,
-    #code = code_projet, 
+    code = code_projet, 
     invoice_date = date_de_facture, 
     full_trip = parcours,
     ori = origine, 
@@ -246,7 +243,7 @@ w_2021 <- w_df_ls$w_2021 |>
                           "MSF INTERNATIONAL  - SOCS" ~"MSF International", 
                           "MSF LOGISTIQUE" ~"MSF Logistique"
          )
-         )
+  )
 
 # Add 2021 
 w_seg <- bind_rows(w_seg, w_2021)
@@ -290,17 +287,17 @@ unmatch <- match_df |> filter(is.na(ref_name)) |> select(name, city_code)
 choices <- df_cities |>
   select(city_code, city_name) 
 
-if (!file.exists(fs::path("data-prep", "output", "unmatched_city.xlsx"))) {
+if (!file.exists(fs::path("data-prep", "output", "unmatched_city_wagram.xlsx"))) {
   
   # save as excel to mnaually create a dict
   qxl::qxl(
     unmatch,
-    file = fs::path("data-prep", "output", "unmatched_city.xlsx")
+    file = fs::path("data-prep", "output", "unmatched_city_wagram.xlsx")
   ) 
 }
 
 # import excel file and match with dict
-man_df <- import(fs::path("data-prep", "output", "unmatched_city.xlsx"))
+man_df <- import(fs::path("data-prep", "output", "unmatched_city_wagram.xlsx"))
 
 match_df <- hmatch::hmatch_composite(
   raw_df, 
@@ -334,7 +331,6 @@ df_w_city <- w_seg |> left_join(select(match_df,
   select(-ori, -dest)
 
 # Calculate distances  ----------------------------------------------------
-
 df_w_clean_lon_lat <- df_w_city  |> 
   
   mutate(distance_km = round(digits = 2, spatialrisk::haversine(ori_city_lat, ori_city_lon, dest_city_lat, dest_city_lon)/1000 ), 
@@ -351,5 +347,76 @@ df_w_clean_lon_lat <- df_w_city  |>
          ),
          emission = round((distance_km * coe2_fct) / 1000, 2)
   )
+
+
+# Add mission codes -------------------------------------------------------
+#get country names and codes from OCG
+clean_country_names <- import(here::here(raw_path, "project_codes", "OCG_FormatedProjectCode.xlsx")) |>
+  as_tibble() |>
+  clean_names() |> 
+  distinct(country_name) |> 
+  mutate(mission_country_iso = countrycode::countrycode(country_name, "country.name", "iso3c"))
+
+# using project codes from OCP 
+country_codes <- import(here::here(raw_path, "project_codes", "OCP_201810_code_projet.xlsx")) |>
+  as_tibble() |>
+  clean_names() |> 
+  filter(str_detect(code_mission_code_projet, "[A-Z]{2}1.$")) |> 
+  mutate(
+    code_mission_code_projet = str_remove(code_mission_code_projet, "\\)" ), 
+    code_mission_code_projet = str_remove(code_mission_code_projet, "\\(" ),
+    code_mission_code_projet = str_remove(code_mission_code_projet, "1"),
+    code_mission_code_projet = tolower(code_mission_code_projet),
+    pays_projet = str_remove(pays_projet,  " \\(.*\\)"), 
+    pays_projet = tolower(pays_projet), 
+    pays_projet = case_match(pays_projet, 
+                             "rca" ~ "central african republic", 
+                             "rdc" ~"democratic republic of congo",
+                             "papouasie n.g." ~"Papua New Guinea",
+                             .default = pays_projet), 
+    mission_country_iso = countrycode::countrycode(pays_projet, "country.name", "iso3c"), 
+    mission_country_iso = case_when(
+      pays_projet == "armenie" ~ "ARM",
+      pays_projet == "cambodge" ~ "KHM",
+      pays_projet == "georgie" ~ "GEO",
+      pays_projet == "liban" ~ "LBN",
+      pays_projet == "libye" ~ "LBY",
+      pays_projet == "Papua New Guinea" ~ "PNG",
+      pays_projet == "russie" ~ "RUS",
+      pays_projet == "somalie" ~ "SOM",
+      pays_projet == "sud-soudan" ~ "SSD",
+      pays_projet == "syrie" ~ "SYR",
+      pays_projet == "tchad" ~ "TCD",
+      .default = mission_country_iso
+    )
+  )|> 
+  #make sure names are written like in OCG
+  left_join(clean_country_names, join_by(mission_country_iso)) |> 
+  mutate(country_name = coalesce(country_name, str_to_sentence(pays_projet))) |>
+  select(
+    code = code_mission_code_projet, 
+    mission_country_name = country_name, 
+    mission_country_iso
+  ) 
+
+project_codes <- import(here::here(raw_path, "project_codes", "OCP_GENERAL_CODE A1_BRUT.xlsx")) |>
+  as_tibble() |>
+  clean_names() |> 
+  select(code = code_projet) |> 
+  mutate(
+    code = tolower(code),
+    country = str_extract(code, "^[a-z]{2}") ) |> 
+  left_join(country_codes, by = join_by(country == code)) |> 
+  summarise(.by = code, country = unique(country), 
+            mission_country_name = unique(mission_country_name), 
+            mission_country_iso = unique(mission_country_iso) ) |> 
+  select(-country)
+
+# Add the contract type 
+df_w_clean_lon_lat <- df_w_clean_lon_lat |> 
+  mutate(
+    code = str_squish(code),
+    code = tolower(code) ) |> 
+  left_join(project_codes, join_by(code))
 
 write_rds(df_w_clean_lon_lat, fs::path(clean_path, "wagram_clean_lon_lat.rds"))
