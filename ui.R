@@ -22,22 +22,32 @@ ui <- tagList(
     mod_amex_ui("flights"),
     mod_meeting_place_ui("mp"),
     mod_travel_estim_ui("travel_estim"),
+    # nav_panel(
+    #   "About",
+    #   icon = bsicons::bs_icon("info-circle"),
+    #   div(
+    #     class = "container",
+    #     h1("Info")
+    #   )
+    # ),
     
     # nav images and links
     nav_spacer(),
-    nav_item( tags$a(
-      "Developed by EpiDS",
-      href = "https://epicentre-msf.github.io/gallery/",
-      target = "_blank"
-    )),
     nav_item(
       tags$a(
-        shiny::icon("github"),
-        "Report an issue",
-        href = "https://github.com/epicentre-msf/carbon-travel-app/issues",
+        "Developed by Epi-DS",
+        href = "https://epicentre-msf.github.io/gallery/",
         target = "_blank"
       )
     ),
+    # nav_item(
+    #   tags$a(
+    #     shiny::icon("github"),
+    #     "Report an issue",
+    #     href = "https://github.com/epicentre-msf/carbon-travel-app/issues",
+    #     target = "_blank"
+    #   )
+    # ),
     nav_item(
       tags$a(
         tags$img(

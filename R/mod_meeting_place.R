@@ -2,6 +2,7 @@ mod_meeting_place_ui <- function(id) {
   ns <- NS(id)
   nav_panel(
     "Meeting Place Planner",
+    icon = bsicons::bs_icon("people-fill"),
     layout_sidebar(
       fillable = TRUE,
       sidebar = sidebar(

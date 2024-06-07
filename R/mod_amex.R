@@ -2,7 +2,8 @@ mod_amex_ui <- function(id) {
   ns <- NS(id)
   
   nav_panel(
-    "Flight data analysis",
+    "Flight Data Analysis",
+    icon = bsicons::bs_icon("bar-chart-line-fill"),
     layout_sidebar(
       fillable = FALSE,
       sidebar = sidebar(

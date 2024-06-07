@@ -1,7 +1,8 @@
 mod_travel_estim_ui <- function(id) {
   ns <- NS(id)
   nav_panel(
-    "Single travel estimation",
+    "Single Travel Estimation",
+    icon = bsicons::bs_icon("airplane-fill"),
     layout_sidebar(
       fillable = TRUE,
       sidebar = sidebar(
