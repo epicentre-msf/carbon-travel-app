@@ -769,7 +769,7 @@ mod_amex_server <- function(
         paste0("amex_data_", dates, org, ".xlsx")
       },
       content = function(file) {
-        qxl::qxl(amex_ready(), file)
+        qxl::qxl(amex_ready() %>% select(-traveler_name), file)
       }
     )
   })
