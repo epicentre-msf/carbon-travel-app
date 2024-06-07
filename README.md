@@ -4,7 +4,7 @@
 
 This is a multi-function app that help users look into the Carbon emissions due to travel for MSF/Epicentre
 
-The app is organised in two parts
+The app is organised in three parts
 
 1. **The Amex Analysis dashboard**
  Provides an analysis into the AMEX flight data. This dataset summarises all the air travels booked through the AMEX travel agency

@@ -132,7 +132,9 @@ full_df <- full_df |> mutate(
                                                "Visa run",
                                                "MSF paid personal travel", 
                                                "Personal travel (subaccount)", 
-                                               "Unknown") )
-)
+                                               "Unknown")), 
+  org = fct_relevel(org, c("OCP", "OCA", "OCB", "OCG", "OCBA", "Epicentre"))
+) |> 
+  arrange(org)
 
 write_rds(full_df, fs::path(clean_path, "full_amex_wagram_cwt.rds"))
