@@ -64,6 +64,19 @@ ui <- tagList(
     nav_item(
       tags$a(
         tags$img(
+          src = "climate_msf_logo.png",
+          alt = "Climate Smart MSF Logo",
+          height = "35px"
+        ),
+        class = "py-0 d-none d-lg-block",
+        title = "Climate Smart MSF",
+        href = "https://msfintl.sharepoint.com/sites/ClimateSmartMSF/?OR=Teams-HL&CT=1716448053305",
+        target = "_blank"
+      )
+    ),
+    nav_item(
+      tags$a(
+        tags$img(
           src = "msf_logo.png",
           alt = "MSF Logo",
           height = "35px"
@@ -80,6 +93,11 @@ ui <- tagList(
       tags$img(
         src = "epicentre_logo.png",
         width = 500,
+        style = "padding: 20px;"
+      ),
+      tags$img(
+        src = "climate_msf_logo.png",
+        width = 300,
         style = "padding: 20px;"
       ),
       waiter::spin_3()
