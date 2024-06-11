@@ -135,9 +135,7 @@ mod_meeting_place_server <- function(
     
     df_dists <- reactive({
       req(df_origin())
-      ntf <- showNotification("Calculating optimal meeting locations", duration = NULL, type = "warning")
       on.exit({
-        removeNotification(ntf)
         if (is_mobile()) {
           toggle_sidebar(id = "sb", open = FALSE)
         }

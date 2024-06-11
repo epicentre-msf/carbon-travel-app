@@ -24,7 +24,7 @@ ui <- tagList(
       primary = "#4682B4",
       "navbar-bg" = "#f8f9fa"
     ),
-    header = verbatimTextOutput("agent_info"),
+    # header = verbatimTextOutput("agent_info"),
     mod_amex_ui("flights"),
     mod_meeting_place_ui("mp"),
     mod_travel_estim_ui("travel_estim"),
@@ -107,7 +107,7 @@ ui <- tagList(
         src = "climate_msf_logo.png",
         width = "100%",
         class = "mx-auto d-block p-2 pb-5",
-        style = "max-width: 300px;"
+        style = "max-width: 200px;"
       ),
       waiter::spin_3()
     ),
