@@ -6,7 +6,7 @@ This is a multi-function app that help users look into the *Carbon emissions* du
 
 It is organised in three parts: 
 
-1. The **Travel Data Analysis**, provides an analysis of most of the travel data from the 6 OCs and Epicentre as well as some partners sections. 
+1. The **Travel Data Analysis**, provides an analysis of most of the travel data from the 5 OCs and Epicentre as well as some partners sections. 
 
 2. The **Meeting Place Planner** helps MSF/EPICENTRE decision makers to identify suitable meeting/events locations in order to minimise the *plane CO2 emissions*.
 
@@ -14,13 +14,13 @@ It is organised in three parts:
 
 ## Project genesis
 
-This project stems from the collaboration between the [**CLIMATE SMART MSF**](https://msfintl.sharepoint.com/:u:/r/sites/ClimateSmartMSF/SitePages/Main-Page.aspx?csf=1&web=1&e=8t2nc5), a TIC (Transformational Investment capacity) project hosted by MSF Canada and OCG, and the [Data Science Team](https://epicentre-msf.github.io/gallery/) at [Epicentre](https://epicentre.msf.org/). 
+This project stems from the collaboration between the [**CLIMATE SMART MSF**](https://msfintl.sharepoint.com/:u:/r/sites/ClimateSmartMSF/SitePages/Main-Page.aspx?csf=1&web=1&e=8t2nc5), a TIC (Transformational Investment capacity) project co-sponsored by MSF Canada and OCG, and the [Data Science Team](https://epicentre-msf.github.io/gallery/) at [Epicentre](https://epicentre.msf.org/). 
 
 The initial goal of the project was to help minimise MSF flight travel emissions by providing a tool that could find the best location to host the many meetings and trainings that the movement organises. After discussion with carbon analysts, it was quickly realised that a dashboard providing key analysis and visualisation of MSF travel data would be greatly beneficial for carbon analyst work but also to raise awareness across MSF.
 
 For any general enquiries regarding the project or the **Climate Smart MSF** please contact **Maëlle CHARRIER** (Maelle.CHARRIER@geneva.msf.org). For technical enquiries regarding the app, please contact **Hugo SOUBRIER** (hugo.soubrier@epicentre.msf.org) or **Paul CAMPBELL** (paul.campbell@epicentre.msf.org). The code for the app is available on the [Epicentre GitHub](https://github.com/epicentre-msf) where you can also [report an issue](https://github.com/epicentre-msf/carbon-travel-app/issues)
 
-## Data source 
+## Data source
 
 The travel data are gathered from different sources depending on the travel agencies used by MSF entities. These data are cleaned and compiled before visualisations. These data can be exported from the App using the *download data* button.
 
@@ -28,7 +28,7 @@ The travel data are gathered from different sources depending on the travel agen
 2. WAGRAM data are provided from 2019 to 2023 for Epicentre and OCP.
 3. CWT data are provided for 2021 and 2022 for OCBA. 
 
-Please be aware that these data are not exhaustive and so **do not represent** the entire scope of MSF travels emissions. Also some information (reason for travel, project code, missions, etc...) are not available for all entities and dates. 
+Please be aware that these data are not exhaustive and so **do not represent** the entire scope of MSF travels emissions. The data correspond to around 50%-60% of the travels booked per the OC’s. Nevertheless, some PS are not included in the analysis (4 Partner Sections out of 28) same as per MSF Supply. Also some information (reason for travel, project code, missions, etc...) are not available for all entities and dates because not provided by the travel agencies directly. 
 
 ## Meeting place planner methodology
 
