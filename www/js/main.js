@@ -26,5 +26,7 @@ function isMobileDevice() {
 
 $(document).on('shiny:sessioninitialized', function(event) {
   var isMobile = isMobileDevice();
+  var userAgent = navigator.userAgent || navigator.vendor || window.opera;
   Shiny.setInputValue('is_mobile', isMobile)
+  Shiny.setInputValue('user_agent', userAgent)
 })

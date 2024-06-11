@@ -24,6 +24,7 @@ ui <- tagList(
       primary = "#4682B4",
       "navbar-bg" = "#f8f9fa"
     ),
+    header = verbatimTextOutput("agent_info"),
     mod_amex_ui("flights"),
     mod_meeting_place_ui("mp"),
     mod_travel_estim_ui("travel_estim"),

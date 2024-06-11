@@ -15,6 +15,10 @@ server <- function(input, output, session) {
     )
   }
 
+  output$agent_info <- renderPrint({
+    paste("Mobile:", input$is_mobile, "Agent:", input$user_agent)
+  })
+
   mod_amex_server(
     id = "flights",
     df_amex,
