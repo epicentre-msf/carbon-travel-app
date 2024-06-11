@@ -109,7 +109,8 @@ city_input <- function(ns,
         autoSelectFirstOption = TRUE,
         placeholder = "Select city...",
         position = "bottom",
-        dropboxWrapper = "body",
+        # dropboxWrapper = "body",
+        showDropboxAsPopup = FALSE,
         showOptionsOnlyOnSearch = FALSE,
         optionsCount = 5
       )

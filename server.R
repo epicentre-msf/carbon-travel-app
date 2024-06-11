@@ -14,13 +14,20 @@ server <- function(input, output, session) {
       exclude_users = c("paul.campbell@epicentre.msf.org", "paul")
     )
   }
+
+  mod_amex_server(
+    id = "flights",
+    df_amex,
+    is_mobile = reactive(input$is_mobile)
+  )
   
   mod_travel_estim_server(
     id = "travel_estim", 
     mat,
     air_msf, 
     df_conversion, 
-    net
+    net,
+    is_mobile = reactive(input$is_mobile)
   )
   
   mod_meeting_place_server(
@@ -28,12 +35,8 @@ server <- function(input, output, session) {
     mat, 
     air_msf,
     df_conversion, 
-    net
-  )
-  
-  mod_amex_server(
-    id = "flights",
-    df_amex
+    net,
+    is_mobile = reactive(input$is_mobile)
   )
   
 }
