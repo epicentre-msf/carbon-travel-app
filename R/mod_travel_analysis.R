@@ -7,7 +7,9 @@ mod_travel_analysis_ui <- function(id) {
     layout_sidebar(
       fillable = FALSE,
       sidebar = sidebar(
+        id = ns("sb"),
         gap = 0,
+        bg = "#eaeaea",
         bslib::layout_columns(
           col_widths = 12,
           shinyWidgets::sliderTextInput(
@@ -257,7 +259,8 @@ mod_travel_analysis_ui <- function(id) {
 
 mod_travel_analysis_server <- function(
     id,
-    df_travels
+    df_travels,
+    is_mobile
 ) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
@@ -291,10 +294,17 @@ mod_travel_analysis_server <- function(
       return(df)
     }) |> bindEvent(input$go, ignoreNULL = FALSE)
     
-    # Summary travel_ready() for value boxes
+    # Summary amex_ready() for value boxes
     travel_summary <- reactive({
-      req(travel_ready())
-      main_segment <- travel_ready() |>
+      req(amex_ready(), !is.null(is_mobile()))
+      on.exit({
+        if (is_mobile()) {
+          toggle_sidebar(id = "sb", open = FALSE)
+        }
+      })
+      
+      main_segment <- amex_ready() |>
+        
         count(ori_city_name, dest_city_name) |>
         mutate(segment = paste(ori_city_name, dest_city_name, sep = "-")) |>
         arrange(desc(n))

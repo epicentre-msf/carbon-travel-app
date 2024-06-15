@@ -109,7 +109,8 @@ stopover_input <- function(
         autoSelectFirstOption = TRUE,
         placeholder = "Select city...",
         position = "bottom",
-        dropboxWrapper = "body",
+        # dropboxWrapper = "body",
+        showDropboxAsPopup = FALSE,
         showOptionsOnlyOnSearch = FALSE,
         optionsCount = 5
       )

@@ -1,7 +1,7 @@
 # server file for Carbon-Travel-App
 
 server <- function(input, output, session) {
-
+  
   # send usage logs to /root/logs if running in shinyproxy container
   # add "/var/log/shinylogs:/root/logs" to the container volumes in the
   # shinyproxy app config to save logs to central location on machine
@@ -15,12 +15,24 @@ server <- function(input, output, session) {
     )
   }
   
+  # output$agent_info <- renderPrint({
+  #   paste("Mobile:", input$is_mobile, "Agent:", input$user_agent)
+  # })
+  
+  mod_travel_analysis_server(
+    id = "travels",
+    df_travels,
+    net,
+    is_mobile = reactive(input$is_mobile)
+  )
+  
   mod_travel_estim_server(
     id = "travel_estim", 
     mat,
     air_msf, 
     df_conversion, 
-    net
+    net,
+    is_mobile = reactive(input$is_mobile)
   )
   
   mod_meeting_place_server(
@@ -31,9 +43,5 @@ server <- function(input, output, session) {
     net
   )
   
-  mod_travel_analysis_server(
-    id = "flights",
-    df_travels
-  )
   
 }

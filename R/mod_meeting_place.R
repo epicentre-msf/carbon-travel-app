@@ -6,8 +6,11 @@ mod_meeting_place_ui <- function(id) {
     layout_sidebar(
       fillable = TRUE,
       sidebar = sidebar(
+        id = ns("sb"),
         width = 300,
         gap = 0,
+        bg = "#eaeaea",
+        open = TRUE,
         mod_origin_input_ui(ns("origin")),
         h5("Destinations"),
         hr(),
@@ -43,7 +46,7 @@ mod_meeting_place_ui <- function(id) {
             autoSelectFirstOption = TRUE,
             placeholder = "All cites",
             position = "bottom",
-            dropboxWrapper = "body",
+            showDropboxAsPopup = FALSE,
             showOptionsOnlyOnSearch = FALSE,
             optionsCount = 5
           )
@@ -57,34 +60,30 @@ mod_meeting_place_ui <- function(id) {
           class = "btn-primary"
         )
       ),
-      bslib::layout_columns(
-        col_widths = 12,
-        row_heights = c(2, 3),
-        gap = 5,
-        bslib::card(
-          full_screen = TRUE,
-          # min_height = 300,
-          bslib::card_header(
-            class = "d-flex align-items-center",
-            bslib::card_title("Optimal Meeting locations")
-          ),
-          bslib::card_body(
-            padding = 0,
-            reactableOutput(ns("tbl"))
-          )
+      bslib::card(
+        full_screen = TRUE,
+        min_height = 200,
+        max_height = 400,
+        bslib::card_header(
+          class = "d-flex align-items-center",
+          bslib::card_title("Optimal Meeting locations")
         ),
-        bslib::card(
-          full_screen = TRUE,
-          # min_height = 400,
-          bslib::card_header(
-            class = "d-flex",
-            bslib::card_title("Map of travels", class = "pe-2"),
-            uiOutput(ns("dest_text"))
-          ),
-          bslib::card_body(
-            padding = 0,
-            leaflet::leafletOutput(ns("map"))
-          )
+        bslib::card_body(
+          padding = 0,
+          reactableOutput(ns("tbl"))
+        )
+      ),
+      bslib::card(
+        full_screen = TRUE,
+        min_height = 300,
+        bslib::card_header(
+          class = "d-flex",
+          bslib::card_title("Map of travels", class = "pe-2"),
+          uiOutput(ns("dest_text"))
+        ),
+        bslib::card_body(
+          padding = 0,
+          leaflet::leafletOutput(ns("map"))
         )
       )
     )
@@ -96,7 +95,8 @@ mod_meeting_place_server <- function(
     mat,
     air_msf,
     df_conversion, 
-    network
+    network,
+    is_mobile
 ) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
@@ -135,8 +135,11 @@ mod_meeting_place_server <- function(
     
     df_dists <- reactive({
       req(df_origin())
-      ntf <- showNotification("Calculating optimal meeting locations", duration = NULL, type = "warning")
-      on.exit(removeNotification(ntf))
+      on.exit({
+        if (is_mobile()) {
+          toggle_sidebar(id = "sb", open = FALSE)
+        }
+      })
       
       # final selection of destinations using the picker inputs
       dest_cities <- dest_fil()

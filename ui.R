@@ -1,17 +1,22 @@
 ui <- tagList(
   tags$head(
+    tags$script(src = "js/main.js"),
     tags$style("
     body {background-color: #f7f7f7;}
     .vb .card-body {padding: 5px !important;} 
     .value-box-area {padding: 0 !important;}
     .selectize-dropdown, .selectize-input, .form-control {font-size: 0.8rem !important;}
+    .bigger-text {font-size: 1.1rem !important;}
     "),
+    
     shinyjs::useShinyjs(),
     waiter::use_waiter()
   ),
   page_navbar(
+    id = "tabs",
     title = app_title,
     collapsible = TRUE,
+    fillable_mobile = FALSE,
     inverse = FALSE,
     theme = bs_theme(
       font_scale = 0.8,
@@ -19,18 +24,19 @@ ui <- tagList(
       primary = "#4682B4",
       "navbar-bg" = "#f8f9fa"
     ),
-    mod_travel_analysis_ui("flights"),
+    
+    # header = verbatimTextOutput("agent_info"),
+    mod_travel_analysis_ui("travels"),
     mod_meeting_place_ui("mp"),
     mod_travel_estim_ui("travel_estim"),
-    
-    # nav_panel(
-    #   "About",
-    #   icon = bsicons::bs_icon("info-circle"),
-    #   div(
-    #     class = "container",
-    #     h1("Info")
-    #   )
-    # ),
+    nav_panel(
+      "About",
+      icon = bsicons::bs_icon("info-circle"),
+      div(
+        class = "container bigger-text",
+        includeMarkdown(here::here("Methodology.md"))
+      )
+    ),
     
     # nav images and links
     nav_spacer(),
@@ -90,16 +96,19 @@ ui <- tagList(
     )
   ),
   waiter::waiter_preloader(
-    html = tagList(
+    html = tags$div(
+      class = "text-center",
       tags$img(
         src = "epicentre_logo.png",
-        width = 500,
-        style = "padding: 20px;"
+        width = "100%",
+        class = "mx-auto d-block p-2 pb-5",
+        style = "max-width: 500px;"
       ),
       tags$img(
         src = "climate_msf_logo.png",
-        width = 300,
-        style = "padding: 20px;"
+        width = "100%",
+        class = "mx-auto d-block p-2 pb-5",
+        style = "max-width: 200px;"
       ),
       waiter::spin_3()
     ),

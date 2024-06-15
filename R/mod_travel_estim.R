@@ -6,7 +6,10 @@ mod_travel_estim_ui <- function(id) {
     layout_sidebar(
       fillable = TRUE,
       sidebar = sidebar(
+        id = ns("sb"),
         gap = 0,
+        bg = "#eaeaea",
+        open = TRUE,
         mod_stopover_input_ui(ns("travel_estim")),
         bslib::input_task_button(
           ns("go_estim"),
@@ -18,7 +21,7 @@ mod_travel_estim_ui <- function(id) {
       ),
       bslib::card(
         full_screen = TRUE,
-        # min_height = 300,
+        min_height = 200,
         bslib::card_header(
           class = "d-flex align-items-center",
           bslib::card_title("Travel Emissions")
@@ -48,7 +51,8 @@ mod_travel_estim_server <- function(id,
                                     mat,
                                     air_msf,
                                     df_conversion,
-                                    network) {
+                                    network,
+                                    is_mobile) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
@@ -56,6 +60,11 @@ mod_travel_estim_server <- function(id,
 
     # build the segments
     df <- reactive({
+      on.exit({
+        if (is_mobile()) {
+          toggle_sidebar(id = "sb", open = FALSE)
+        }
+      })
       df_stop() |>
         mutate(
           distance_km = purrr::map2_dbl(start_var, end_var, ~ unname(mat[.x, .y])),
