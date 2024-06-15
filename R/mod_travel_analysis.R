@@ -294,16 +294,16 @@ mod_travel_analysis_server <- function(
       return(df)
     }) |> bindEvent(input$go, ignoreNULL = FALSE)
     
-    # Summary amex_ready() for value boxes
+    # Summary travel_ready() for value boxes
     travel_summary <- reactive({
-      req(amex_ready(), !is.null(is_mobile()))
+      req(travel_ready(), !is.null(is_mobile()))
       on.exit({
         if (is_mobile()) {
           toggle_sidebar(id = "sb", open = FALSE)
         }
       })
       
-      main_segment <- amex_ready() |>
+      main_segment <- travel_ready() |>
         
         count(ori_city_name, dest_city_name) |>
         mutate(segment = paste(ori_city_name, dest_city_name, sep = "-")) |>

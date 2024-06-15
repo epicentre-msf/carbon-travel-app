@@ -22,7 +22,6 @@ server <- function(input, output, session) {
   mod_travel_analysis_server(
     id = "travels",
     df_travels,
-    net,
     is_mobile = reactive(input$is_mobile)
   )
   
@@ -40,8 +39,9 @@ server <- function(input, output, session) {
     mat, 
     air_msf,
     df_conversion, 
-    net
+    net, 
+    is_mobile = reactive(input$is_mobile)
   )
-  
+
   
 }
