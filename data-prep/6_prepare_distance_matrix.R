@@ -26,7 +26,7 @@ pacman::p_load(
 source(here::here("R", "utils.R"))
 
 # Import data -------------------------------------------------------------
-dat <- readRDS(here::here("data","clean", "full_amex_wagram_cwt.rds")) |> filter(data_source != "CWT") #remove OCBA flights which have no stop overs 
+dat <- readRDS(here::here("data","clean", "full_amex_wagram_cwt.rds")) |> filter(data_source != "CWT") |> filter(travel_type == "air") #remove OCBA flights which have no stop overs 
 
 msf <- readRDS(here::here("data","clean", "unique_msf_clean.rds"))
 

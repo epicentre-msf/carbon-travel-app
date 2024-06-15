@@ -29,9 +29,13 @@ amex <- readRDS(here::here(clean_path, "amex_clean_lon_lat.rds"))
 
 # Import data  -------------------------------------------------------------
 
-# OFFLINE
-#path_offline <- here::here("data", "raw")
-#raw_path <- path_offline
+if(fetch_data_offline){
+  
+  # OFFLINE
+  path_offline <- here::here("data", "raw")
+  raw_path <- path_offline
+  
+}
 
 #Import Wagram data 
 wagram_files <- fs::dir_ls(fs::path(raw_path, "wagram-data"), regexp = "Standard")

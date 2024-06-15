@@ -19,9 +19,10 @@ ui <- tagList(
       primary = "#4682B4",
       "navbar-bg" = "#f8f9fa"
     ),
-    mod_amex_ui("flights"),
+    mod_travel_analysis_ui("flights"),
     mod_meeting_place_ui("mp"),
     mod_travel_estim_ui("travel_estim"),
+    
     # nav_panel(
     #   "About",
     #   icon = bsicons::bs_icon("info-circle"),

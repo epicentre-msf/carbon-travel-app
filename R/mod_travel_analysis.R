@@ -1,4 +1,4 @@
-mod_amex_ui <- function(id) {
+mod_travel_analysis_ui <- function(id) {
   ns <- NS(id)
   
   nav_panel(
@@ -19,17 +19,26 @@ mod_amex_ui <- function(id) {
             animate = FALSE,
             width = "95%"
           ),
+          
+          shiny::selectizeInput(
+            inputId = ns("select_travel_type"),
+            label = "Travel Type",
+            choices = travel_type_var,
+            multiple = TRUE,
+            options = list(placeholder = "All", plugins = "remove_button")
+          ),
+          
           shiny::selectizeInput(
             inputId = ns("select_org"),
             label = "Organisation",
-            choices = unique(df_amex$org),
+            choices = unique(df_travels$org),
             multiple = TRUE,
             options = list(placeholder = "All", plugins = "remove_button")
           ),
           shiny::selectizeInput(
             inputId = ns("select_type"),
             label = "Contract type",
-            choices = unique(df_amex$hq_flying_mission),
+            choices = unique(df_travels$hq_flying_mission),
             multiple = TRUE,
             options = list(placeholder = "All", plugins = "remove_button")
           ),
@@ -53,11 +62,13 @@ mod_amex_ui <- function(id) {
         width = 1 / 4,
         fill = FALSE,
         value_box(
-          title = "Flights",
+          title = "travels",
           theme = "primary",
           class = "vb",
-          value = textOutput(ns("flight")),
+          value = textOutput(ns("travel")),
+          uiOutput(ns("travel_info"))
         ),
+        
         value_box(
           title = "Total Distance",
           theme = "primary",
@@ -93,7 +104,7 @@ mod_amex_ui <- function(id) {
             class = "d-flex justify-content-between align-items-center",
             tags$span(
               class = "pe-2",
-              tagList(shiny::icon("earth-africa"), "Map")
+              tagList(shiny::icon("earth-africa"), "Map of flights destinations & origins")
             )
           ),
           nav_panel(
@@ -194,7 +205,16 @@ mod_amex_ui <- function(id) {
             class = "d-flex align-items-center",
             "Emisions ratios"
           ),
-          title = "Emisions ratios",
+          div(
+            class = "pe-2",
+            shiny::selectizeInput(
+              ns("select_travel_type_ratio"),
+              label = "Display",
+              choices = travel_type_var,
+              multiple = FALSE,
+              width = "50%"
+            ) 
+          ),
           reactableOutput(ns("ratio_tab"))
         ),
         
@@ -235,75 +255,54 @@ mod_amex_ui <- function(id) {
   )
 }
 
-mod_amex_server <- function(
+mod_travel_analysis_server <- function(
     id,
-    df_amex
+    df_travels
 ) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     
     # Filter Organisation anc contract type
-    amex_org <- reactive({
-      df_out <- df_amex
+    travel_org <- reactive({
+      df_out <- df_travels
       if (length(input$select_org)) {
-        df_out <- df_out %>% filter(org %in% input$select_org)
+        df_out <- df_out |> filter(org %in% input$select_org)
       } 
       if (length(input$select_type)) {
-        df_out <- df_out %>% filter(hq_flying_mission %in% input$select_type)
+        df_out <- df_out |> filter(hq_flying_mission %in% input$select_type)
       } 
+      
+      if (length(input$select_travel_type)) {
+        df_out <- df_out |> filter(travel_type %in% input$select_travel_type)
+      } 
+      
       df_out
     })
     
-    # # Filter HQ/flying/Mission
-    # amex_org <- reactive({
-    #   if (length(input$select_type)) {
-    #     df_amex %>% filter(hq_flying_mission %in% input$select_type)
-    #   } else {
-    #     df_amex
-    #   }
-    # })
-    
-    # Update Reasons and Date Input depending on select_org
-    # observeEvent(
-    #   input$select_org,
-    #   ignoreNULL = FALSE,
-    #   {
-    #     min_date <- min(amex_org()$invoice_date)
-    #     max_date <- max(amex_org()$invoice_date)
-
-    #     date_seq <- format(seq.Date(min_date, max_date, by = "month"), "%Y-%m")
-
-    #     shinyWidgets::updateSliderTextInput(
-    #       session = session,
-    #       inputId = "date_range",
-    #       choices = date_seq
-    #     )
-    #   }
-    # )
-
-    # Filter amex_org with date and reason value
-    amex_ready <- reactive({
+    # Filter travel_org with date and reason value
+    travel_ready <- reactive({
       date <- as.Date(paste0(input$date_range, "-01"))
       # move date[2] to last day of month to capture everything in that month
       date[2] <- ceiling_date(date[2], unit = "month") - days(1)
-
-      df <- amex_org() |>
+      
+      df <- travel_org() |>
         filter(invoice_date >= date[1], invoice_date <= date[2])
       
       return(df)
-    }) %>% bindEvent(input$go, ignoreNULL = FALSE)
+    }) |> bindEvent(input$go, ignoreNULL = FALSE)
     
-    # Summary amex_ready() for value boxes
-    amex_summary <- reactive({
-      req(amex_ready())
-      main_segment <- amex_ready() |>
+    # Summary travel_ready() for value boxes
+    travel_summary <- reactive({
+      req(travel_ready())
+      main_segment <- travel_ready() |>
         count(ori_city_name, dest_city_name) |>
         mutate(segment = paste(ori_city_name, dest_city_name, sep = "-")) |>
         arrange(desc(n))
       
-      dat_summ <- amex_ready() |>
+      dat_summ <- travel_ready() |>
         summarise(
-          n_flight = frmt_num(n()),
+          n_travel = frmt_num(n()),
+          n_flight = paste0(frmt_num(sum(travel_type == "air")), " (", round(digits = 1, sum(travel_type == "air")/n() *100 ), "%)"), 
           n_segment = nrow(main_segment),
           main_seg = main_segment |> filter(row_number() == 1) |> pull(segment),
           main_seg_n = main_segment |> filter(row_number() == 1) |> pull(n),
@@ -321,44 +320,51 @@ mod_amex_server <- function(
     
     # VALUE BOXES ============================
     
-    output$flight <- renderText({
-      req(amex_summary())
-      paste(amex_summary()$n_flight, " Flights")
+    output$travel <- renderText({
+      req(travel_summary())
+      paste(travel_summary()$n_travel, " Travels")
+    })
+    
+    output$travel_info <- renderUI({
+      req(travel_summary())
+      paste(travel_summary()$n_flight, " Flights")
     })
     
     output$segment <- renderText({
-      req(amex_summary())
-      paste(amex_summary()$n_segment, " unique")
+      req(travel_summary())
+      paste(travel_summary()$n_segment, " unique")
     })
     
     output$dist <- renderText({
-      req(amex_summary())
-      paste(amex_summary()$tot_distance_km_fmt, " km")
+      req(travel_summary())
+      paste(travel_summary()$tot_distance_km_fmt, " km")
     })
     
     output$dist_info <- renderUI({
       
-      req(amex_summary())
-      tags$small(glue::glue("{fmt_n(amex_summary()$tot_distance_km/40000)} times the Earth's circumference !"))
+      req(travel_summary())
+      tags$small(glue::glue("{fmt_n(travel_summary()$tot_distance_km/40000)} times the Earth's circumference !"))
     })
     
     output$emission <- renderText({
-      req(amex_summary())
-      paste(amex_summary()$tot_emissions_fmt, " tCO2e")
+      req(travel_summary())
+      paste(travel_summary()$tot_emissions_fmt, " tCO2e")
     })
     
     output$emission_info <- renderUI({
-      req(amex_summary())
-      tags$small(glue::glue("{fmt_n(amex_summary()$tot_emissions * 0.013 )} tanker trucks worth of gasoline !"))
+      req(travel_summary())
+      tags$small(glue::glue("{fmt_n(travel_summary()$tot_emissions * 0.013 )} tanker trucks worth of gasoline !"))
     })
     
     # Ratio table  ===========================================
     
     output$ratio_tab <- renderReactable({
       
-      validate(need(nrow(amex_ready()) > 0, "No data available"))
+      df <- travel_ready() |> filter(travel_type == input$select_travel_type_ratio)
       
-      dat_year <- amex_ready() |>
+      validate(need(nrow(df) > 0, "No data available"))
+      
+      dat_year <- df |> 
         
         summarise(
           .by = year,
@@ -376,7 +382,7 @@ mod_amex_server <- function(
         )  |> 
         select(year, emissions, contains("em_"))
       
-      dat_tot <- amex_ready() |>
+      dat_tot <- travel_ready() |>
         summarise(
           emissions = round(sum(emission, na.rm = TRUE), digits = 0),
           emissions_kg = emissions * 1000,
@@ -413,27 +419,28 @@ mod_amex_server <- function(
     })
     
     # Map  ===========================================
-    
     df_origin <- reactive({
       
-      amex_ready() %>%
+      travel_ready() |>
+        filter(travel_type == "air") |> 
         summarise(
           .by = c(ori_city_code, ori_city_name),
           ori_lon = unique(ori_city_lon, na.rm = TRUE),
           ori_lat = unique(ori_city_lat, na.rm = TRUE),
           n = n()
-        ) %>%
+        ) |>
         tidyr::drop_na()
     })
     
     df_destination <- reactive({
-      amex_ready() %>%
+      travel_ready() |> 
+        filter(travel_type == "air") |> 
         summarise(
           .by = c(dest_city_code, dest_city_name),
           dest_lon = unique(dest_city_lon, na.rm = TRUE),
           dest_lat = unique(dest_city_lat, na.rm = TRUE),
           n = n()
-        ) %>%
+        ) |>
         tidyr::drop_na()
     })
     
@@ -442,20 +449,20 @@ mod_amex_server <- function(
       
       validate(need(nrow(df_origin()) > 0, "No data available"))
       
-      leaflet::leaflet() %>%
-        leaflet::setView(0, 10, zoom = 2) %>%
-        leaflet::addMapPane(name = "circles", zIndex = 410) %>%
-        leaflet::addMapPane(name = "place_labels", zIndex = 450) %>%
-        leaflet::addProviderTiles("CartoDB.Positron", group = "Light") %>%
-        # leaflet::addProviderTiles("OpenStreetMap", group = "OSM") %>%
-        leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) %>%
-        leaflet.extras::addFullscreenControl(position = "topleft") %>%
-        leaflet.extras::addResetMapButton() %>%
+      leaflet::leaflet() |>
+        leaflet::setView(0, 10, zoom = 2) |>
+        leaflet::addMapPane(name = "circles", zIndex = 410) |>
+        leaflet::addMapPane(name = "place_labels", zIndex = 450) |>
+        leaflet::addProviderTiles("CartoDB.Positron", group = "Light") |>
+        # leaflet::addProviderTiles("OpenStreetMap", group = "OSM") |>
+        leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) |>
+        leaflet.extras::addFullscreenControl(position = "topleft") |>
+        leaflet.extras::addResetMapButton() |>
         leaflet::addLayersControl(
           baseGroups = c("Origin", "Destination"),
           position = "topright",
           options = layersControlOptions(collapsed = FALSE)
-        ) %>%
+        ) |>
         leaflet::addCircleMarkers(
           data = df_origin(),
           lng = ~ori_lon,
@@ -468,7 +475,7 @@ mod_amex_server <- function(
           label = ~ paste(ori_city_name, n, "flights"),
           group = "Origin",
           options = leaflet::pathOptions(pane = "circles")
-        ) %>%
+        ) |>
         leaflet::addCircleMarkers(
           data = df_destination(),
           lng = ~dest_lon,
@@ -485,28 +492,28 @@ mod_amex_server <- function(
     })
     
     # Time-Series ===========================================
-
+    
     # Prepare data
     hc_df <- reactive({
       y_var <- sym(input$display)
-
+      
       if (input$select_year != "All years") {
-        df <- amex_ready() |>
+        df <- travel_ready() |>
           filter(year == input$select_year)
       } else {
-        df <- amex_ready()
+        df <- travel_ready()
       }
-
+      
       # Set filters
       if (input$group != "no grouping") {
         group_sym <- sym(input$group)
       } else {
         group_sym <- NULL
       }
-
-      df_hist <- df %>%
-        rename("date_group" = input$date_interval) %>%
-        mutate(date_group = fct_relevel(as.character(date_group))) %>%
+      
+      df_hist <- df |>
+        rename("date_group" = input$date_interval) |>
+        mutate(date_group = fct_relevel(as.character(date_group))) |>
         summarise(
           .by = c(!!group_sym, date_group),
           n_flights = n(),
@@ -514,30 +521,30 @@ mod_amex_server <- function(
           distance_miles = round(sum(distance_miles, na.rm = TRUE), digits = 1),
           gross_amount = round(sum(gross_amount, na.rm = TRUE), digits = 1),
           emission = round(sum(emission, na.rm = TRUE), digits = 1)
-        ) %>%
-        arrange(date_group) %>%
+        ) |>
+        arrange(date_group) |>
         mutate(
           lab = fmt_n(!!y_var),
           n_c = cumsum(!!y_var)
         )
-
+      
       return(df_hist)
     })
-
+    
     output$time_serie <- renderHighchart({
       
       validate(need(nrow(hc_df()) > 0, "No data available"))
-    
+      
       # Set filters
       if (input$group != "no grouping") {
         group_sym <- sym(input$group)
       } else {
         group_sym <- NULL
       }
-
+      
       n_var <- dplyr::if_else(input$cumulative, "n_c", input$display)
       n_lab <- names(display_var[display_var == input$display])
-
+      
       if (input$group == "no grouping") {
         base_hc <- hchart(
           hc_df(),
@@ -585,7 +592,7 @@ mod_amex_server <- function(
     # observe Event for distribution year input
     
     observeEvent(input$date_range, {
-      year_choices <- sort(unique(amex_ready()$year), decreasing = TRUE)
+      year_choices <- sort(unique(travel_ready()$year), decreasing = TRUE)
       
       shiny::updateSelectizeInput(
         "dist_year",
@@ -597,23 +604,23 @@ mod_amex_server <- function(
     # Histograms
     output$dist_hist <- renderHighchart({
       
-      validate(need(nrow(amex_ready()) > 0, "No data available"))
-
+      validate(need(nrow(travel_ready()) > 0, "No data available"))
+      
       dist_var_sym <- sym(input$dist_var)
       
       if (input$dist_year != "All years") {
-        hc_var <- amex_ready() %>%
-          filter(year == input$dist_year) %>%
+        hc_var <- travel_ready() |>
+          filter(year == input$dist_year) |>
           pull(!!dist_var_sym)
       } else {
-        hc_var <- amex_ready() %>%
+        hc_var <- travel_ready() |>
           pull(!!dist_var_sym)
       }
       
       hchart(
         hc_var,
         name = names(display_var[display_var == input$dist_var])
-      ) %>%
+      ) |>
         hc_xAxis(
           plotLines = list(
             list(
@@ -629,8 +636,8 @@ mod_amex_server <- function(
     # Boxplot
     output$dist_boxplot <- renderHighchart({
       
-      validate(need(nrow(amex_ready()) > 0, "No data available"))
-
+      validate(need(nrow(travel_ready()) > 0, "No data available"))
+      
       dist_var_sym <- sym(input$display)
       
       date_interval_sym <- sym(input$date_interval)
@@ -638,14 +645,14 @@ mod_amex_server <- function(
       dist_group_var2 <- sym(input$group)
       
       if (input$select_year != "All years") {
-        amex_box <- amex_ready() |>
+        travel_box <- travel_ready() |>
           filter(year == input$select_year)
       } else {
-        amex_box <- amex_ready()
+        travel_box <- travel_ready()
       }
       
       box_df <- data_to_boxplot(
-        amex_box,
+        travel_box,
         !!dist_var_sym,
         group_var = !!date_interval_sym,
         #group_var2 = !!dist_group_var2,
@@ -653,31 +660,31 @@ mod_amex_server <- function(
         # showInLegend = FALSE
       )
       
-      highchart() %>%
-        hc_chart(zoomType = "x") %>%
+      highchart() |>
+        hc_chart(zoomType = "x") |>
         hc_xAxis(
           type = "category",
           crosshair = TRUE
         ) |>
         hc_yAxis(
           title = list(text = names(display_var[display_var == input$display]))
-        ) %>%
-        hc_add_series_list(box_df) %>%
+        ) |>
+        hc_add_series_list(box_df) |>
         hc_tooltip(shared = TRUE)
     })
     
     # Global parts ========================================
     output$barplot <- renderHighchart({
       
-      validate(need(nrow(amex_ready()) > 0, "No data available"))
+      validate(need(nrow(travel_ready()) > 0, "No data available"))
       
       bar_var_sym <- sym(input$bar_var)
       
       bar_group_sym <- sym(input$bar_group)
       
-      hc_df <- amex_ready() %>%
+      hc_df <- travel_ready() |>
         # filter out Nas for group var
-        drop_na(!!bar_group_sym) %>%
+        drop_na(!!bar_group_sym) |>
         summarise(
           .by = c(!!bar_group_sym),
           n_flights = n(),
@@ -685,12 +692,12 @@ mod_amex_server <- function(
           distance_miles = sum(distance_miles, na.rm = TRUE),
           gross_amount = sum(gross_amount, na.rm = TRUE),
           emission = round(digits = 1, sum(emission, na.rm = TRUE))
-        ) %>%
+        ) |>
         mutate(
           label = fmt_n(!!bar_var_sym),
           percent = scales::percent(!!bar_var_sym / sum(!!bar_var_sym, na.rm = TRUE), accuracy = .1)
-        ) %>%
-        rename("group_var" = input$bar_group) %>%
+        ) |>
+        rename("group_var" = input$bar_group) |>
         arrange(desc(!!bar_var_sym))
       
       hchart(
@@ -700,17 +707,17 @@ mod_amex_server <- function(
           x = group_var,
           y = !!bar_var_sym
         )
-      ) %>%
+      ) |>
         hc_chart(
           scrollablePlotArea = list(minHeight = 20 * n_distinct(hc_df$group_var))
-        ) %>%
-        hc_yAxis(title = list(text = names(display_var[display_var == input$bar_var]))) %>%
+        ) |>
+        hc_yAxis(title = list(text = names(display_var[display_var == input$bar_var]))) |>
         hc_xAxis(
           title = list(text = names(bar_group[bar_group == input$bar_group])),
           labels = list(step = 1),
           tickInterval = 1,
           crosshair = TRUE
-        ) %>%
+        ) |>
         hc_tooltip(
           useHTML = TRUE,
           formatter = JS("
@@ -718,28 +725,28 @@ mod_amex_server <- function(
             outHTML =  '<i>' + this.point.group_var + '</i> <br> <b>' + this.point.label + ' (' + this.point.percent + ')</b>'
             return(outHTML)
           }")
-        ) %>%
+        ) |>
         hc_chart(inverted = TRUE)
     })
     
     # GEO TABLE ==========================================
     
     output$table <- renderReactable({
-      validate(need(nrow(amex_ready()) > 0, "No data available"))
-      geo_tab <- amex_ready() %>%
+      validate(need(nrow(travel_ready()) > 0, "No data available"))
+      geo_tab <- travel_ready() |>
         summarise(
           .by = c(dest_city_name),
           n_flights = n(),
           emission = sum(emission, na.rm = TRUE),
           main_org = org[max(n())]
-        ) %>%
+        ) |>
         mutate(
           emission_pct = scales::percent(emission / sum(emission, na.rm = TRUE)),
           emission = fmt_n(emission),
           emission = paste0(emission, " (", emission_pct, ")")
-        ) %>%
-        select(-emission_pct) %>%
-        arrange(desc(n_flights)) %>%
+        ) |>
+        select(-emission_pct) |>
+        arrange(desc(n_flights)) |>
         head(n = 20)
       
       reactable(
@@ -766,10 +773,10 @@ mod_amex_server <- function(
         } else {
           "_All-org"
         }
-        paste0("amex_data_", dates, org, ".xlsx")
+        paste0("travel_data_", dates, org, ".xlsx")
       },
       content = function(file) {
-        qxl::qxl(amex_ready() %>% select(-traveler_name), file)
+        qxl::qxl(travel_ready() |> select(-traveler_name), file)
       }
     )
   })

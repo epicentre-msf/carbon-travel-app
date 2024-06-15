@@ -31,9 +31,9 @@ server <- function(input, output, session) {
     net
   )
   
-  mod_amex_server(
+  mod_travel_analysis_server(
     id = "flights",
-    df_amex
+    df_travels
   )
   
 }

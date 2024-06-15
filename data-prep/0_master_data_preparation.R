@@ -1,5 +1,7 @@
 #Data preparation for Carbon travel app 
 
+fetch_data_offline <- TRUE
+
 #1. prepare cities name and code
 
 source(here::here("data-prep", "1_prepare_cities.R"))

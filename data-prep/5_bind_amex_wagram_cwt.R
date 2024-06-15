@@ -22,7 +22,7 @@ cwt <- readRDS(fs::path(clean_path, "cwt_clean_lon_lat.rds")) |> mutate(data_sou
 # select only important variables 
 amex <- amex |>
   select(org, 
-         traveler_name, 
+         traveler_name,
          ori_city_code, 
          ori_city_name, 
          ori_city_lon, 
@@ -49,11 +49,14 @@ amex <- amex |>
          distance_miles, 
          coe2_fct, 
          emission,
+         travel_type, 
          data_source) 
 
 wagram <- wagram |> 
+  #to remove when train added to wagram
+  mutate(travel_type = "air") |> 
   select(org, 
-         traveler_name, 
+         traveler_name,
          ori_city_code, 
          ori_city_name, 
          ori_city_lon, 
@@ -80,12 +83,15 @@ wagram <- wagram |>
          distance_miles, 
          coe2_fct, 
          emission,
+         travel_type,
          data_source
   )
 
 cwt <- cwt |> 
+  #to remove when train added to cwt
+  mutate(travel_type = "air") |> 
   select(org, 
-         traveler_name, 
+         traveler_name,
          ori_city_code, 
          ori_city_name, 
          ori_city_lon, 
@@ -112,6 +118,7 @@ cwt <- cwt |>
          distance_miles, 
          coe2_fct, 
          emission,
+         travel_type,
          data_source)
 
 # Bind rows 
