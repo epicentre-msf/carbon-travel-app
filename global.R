@@ -61,8 +61,8 @@ net <- read_rds(here::here(clean_path, "flights_network.rds"))
 cities_network <- read_rds(here::here(clean_path, "cities_network.rds"))
 
 # date range
-init_year <- sort(unique(df_amex$year))
-init_date_range <- format(seq.Date(min(df_amex$invoice_date), max(df_amex$invoice_date), by = "month"), "%Y-%m")
+init_year <- sort(unique(df_travels$year))
+init_date_range <- format(seq.Date(min(df_travels$invoice_date), max(df_travels$invoice_date), by = "month"), "%Y-%m")
 min_date <- min(init_date_range)
 max_date <- max(init_date_range)
 

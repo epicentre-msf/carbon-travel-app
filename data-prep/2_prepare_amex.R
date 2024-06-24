@@ -38,7 +38,7 @@ clean_path <- here::here("data", "clean")
 
 # Import data  -------------------------------------------------------------
 
-fetch_data_offline <- TRUE
+fetch_data_offline <- FALSE
 
 if(fetch_data_offline){
   

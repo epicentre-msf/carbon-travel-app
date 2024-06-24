@@ -1,6 +1,6 @@
 #Data preparation for Carbon travel app 
 
-fetch_data_offline <- TRUE
+fetch_data_offline <- FALSE
 
 #1. prepare cities name and code
 

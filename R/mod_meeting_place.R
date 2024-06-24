@@ -100,7 +100,7 @@ mod_meeting_place_server <- function(
 ) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
-
+    
     observe({
       cond <- input$msf_all == "msf"
       shinyjs::toggle("msf_type_select", condition = cond, anim = TRUE)
@@ -143,34 +143,20 @@ mod_meeting_place_server <- function(
       
       # final selection of destinations using the picker inputs
       dest_cities <- dest_fil()
+      
       # filter to selected cities if not empty
       if (length(input$select_dest)) {
         dest_cities <- dest_cities |> filter(city_code %in% input$select_dest)
       }
+      
       dest_cities <- dest_cities |> pull(city_code)
       
-      # Map the function over all possible destinations
-      all_dest <- purrr::map(
-        # the desired destinations - for now include all of them. Add filters to this if you wish
-        dest_cities,
-        ~ get_dest_tot(
-          df_origin(),
-          destination = .x,
-          df_conversion = conversion_df,
-          dist_mat = mat
-        )
-      )
+      # Get best locations from the matrix 
       
-      # name the lists elements
-      names(all_dest) <- dest_cities
-      
-      # Bind the grand totals together arrange and display
-      grand_tot <- purrr::map(
-        dest_cities,
-        ~ all_dest[[.x]]$total
-      ) |>
-        bind_rows() |>
-        arrange(grand_tot_emission) |>
+      all_dest <- best_locations(mat, 
+                                 df_origin(), 
+                                 destinations = dest_cities
+      ) |> 
         mutate(rank = row_number()) |>
         relocate(rank, 1) |>
         left_join(
@@ -198,7 +184,8 @@ mod_meeting_place_server <- function(
           oc,
           msf_type
         )
-    }) %>% bindEvent(input$go)
+    }) |> bindEvent(input$go)
+    
     
     # Make a reactable
     orange_pal <- function(x) rgb(colorRamp(c("#B8CCAD", "#BF6C67"))(x), maxColorValue = 255)
@@ -251,13 +238,13 @@ mod_meeting_place_server <- function(
     })
     
     # Map  =========================================================================
-
+    
     map_dest <- reactiveVal()
     # when new locations are calculated update map dest to rank 1 city
     observe({
       req(df_dists())
-      md <- df_dists() %>%
-        filter(rank == 1) %>%
+      md <- df_dists() |>
+        filter(rank == 1) |>
         pull(city_code)
       map_dest(md)
     })
@@ -278,7 +265,7 @@ mod_meeting_place_server <- function(
     #     )
     #   shinyWidgets::updateVirtualSelect("map_dest", choices = choices)
     # })
-
+    
     output$dest_text <- renderUI({
       req(map_dest())
       city_name <- dest[dest$city_code == map_dest(), "city_name", drop = TRUE]
@@ -342,55 +329,160 @@ mod_meeting_place_server <- function(
           fillColor = ~ pal(type),
           label = ~city_name
         )
-    }) %>% bindEvent(map_dest(), df_dists())
-  })
+    }) |> bindEvent(map_dest(), df_dists())
+  }
+  )
 }
 
-# Function to retrieve the distance/emissions/path to a destination
-# gives a grand total df and the details df
-
-get_dest_tot <- function(
-    df_origin,
-    destination,
-    df_conversion,
-    dist_mat
-) {
-  distances <- unname(dist_mat[df_origin$origin_id, destination])
+best_locations <- function(mat, 
+                           df_origin, 
+                           destinations){
   
-  df_details <- df_origin |>
+  
+  if( length(setdiff(df_origin$origin_id, colnames(mat))) > 0 ) { stop(paste0("Origins: ", paste(setdiff(df_origin$origin_id, colnames(mat)), collapse = ", "), " are not in the matrix")) }
+  if( length(setdiff(destinations, colnames(mat))) > 0 ) { stop(paste0("Destinations: ", paste(setdiff(destinations, colnames(mat)), collapse = ", "), " are not in the matrix")) }
+  
+  # sort the df_origins by alphabetical order
+  df_origin <- arrange(df_origin, origin_id)
+  
+  #sort the destination by alphabetical order
+  destinations <- sort(destinations)
+  
+  #sort the matrix is sorted in alphabetical order
+  mat_sub <- mat[sort(rownames(mat)), sort(colnames(mat))]
+  
+  #1. filter the possible destinations & Filter rows of origins 
+  mat_sub <- mat[df_origin$origin_id, destinations]
+  
+  #3. Multiply rows by value of input 
+  mat_sub_ori <- sweep(mat_sub, 1, df_origin$n_participant, FUN = "*" )
+  
+  #4. Sum all rows together and sort
+  mat_sum <- sort(colSums(mat_sub_ori))
+  
+  #5. create dataframe and calculate emissions
+  df <- data.frame(name_dest = names(mat_sum), 
+                   grand_tot_km = unname(mat_sum)) |> 
     mutate(
-      name_dest = destination,
-      # path = purrr::map2_chr(origin_id, destination, ~ paste(sfnetworks::st_network_paths(net, from = .x, to = .y )$node_paths[[1]], collapse = "-")),
-      distance_km = distances,
-      total_distance_km = n_participant * distance_km,
       distance_cat = case_when(
-        distance_km <= 999 ~ "short",
-        distance_km >= 3500 ~ "long",
+        grand_tot_km <= 999 ~ "short",
+        grand_tot_km >= 3500 ~ "long",
         .default = "medium"
-      )
-    ) |>
+      ) ) |> 
+    
     left_join(
-      df_conversion |> select(distance_cat, emissions_factor = co2e),
+      
+      conversion_df |> 
+        select(distance_cat, emissions_factor = co2e),
       by = "distance_cat"
     ) |>
     mutate(
-      trip_emissions = round(digits = 3, distance_km * emissions_factor),
-      total_emissions = n_participant * trip_emissions
-    )
+      grand_tot_emission = round(digits = 3, grand_tot_km * emissions_factor),
+    ) |>
+    
+    select(name_dest, grand_tot_km, grand_tot_emission)
   
-  grand_df <- df_details |>
-    group_by(name_dest) |>
-    summarise(
-      grand_tot_km = sum(total_distance_km),
-      grand_tot_emission = sum(total_emissions)
-    )
-  
-  ls <- list(
-    details = df_details,
-    total = grand_df
-  )
-  
-  return(ls)
-  
-  names(ls) <- destination
+  return(df)
 }
+
+# OLD Function to retrieve the distance/emissions/path to a destination
+# get_dest_tot <- function(
+    #     df_origin,
+#     destination,
+#     df_conversion,
+#     dist_mat
+# ) {
+#   
+#   distances <- unname(dist_mat[df_origin$origin_id, destination])
+#   
+#   df_details <- df_origin |>
+#     mutate(
+#       name_dest = destination,
+#       # path = purrr::map2_chr(origin_id, destination, ~ paste(sfnetworks::st_network_paths(net, from = .x, to = .y )$node_paths[[1]], collapse = "-")),
+#       distance_km = distances,
+#       total_distance_km = n_participant * distance_km,
+#       distance_cat = case_when(
+#         distance_km <= 999 ~ "short",
+#         distance_km >= 3500 ~ "long",
+#         .default = "medium"
+#       )
+#     ) |>
+#     left_join(
+#       df_conversion |> select(distance_cat, emissions_factor = co2e),
+#       by = "distance_cat"
+#     ) |>
+#     mutate(
+#       trip_emissions = round(digits = 3, distance_km * emissions_factor),
+#       total_emissions = n_participant * trip_emissions
+#     )
+#   
+#   grand_df <- df_details |>
+#     group_by(name_dest) |>
+#     summarise(
+#       grand_tot_km = sum(total_distance_km),
+#       grand_tot_emission = sum(total_emissions)
+#     )
+#   
+#   ls <- list(
+#     details = df_details,
+#     total = grand_df
+#   )
+#   
+#   return(ls)
+#   
+#   names(ls) <- destination
+# }
+
+
+# OLD SERVER 
+# # Map the function over all possible destinations
+# all_dest <- purrr::map(
+#   # the desired destinations - for now include all of them. Add filters to this if you wish
+#   dest_cities,
+#   ~ get_dest_tot(
+#     df_origin(),
+#     destination = .x,
+#     df_conversion = conversion_df,
+#     dist_mat = mat
+#   )
+# )
+# 
+# # name the lists elements
+# names(all_dest) <- dest_cities
+
+# Bind the grand totals together arrange and display
+#   grand_tot <- purrr::map(
+#     dest_cities,
+#     ~ all_dest[[.x]]$total
+#   ) |>
+#     bind_rows() |>
+#     arrange(grand_tot_emission) |>
+#     mutate(rank = row_number()) |>
+#     relocate(rank, 1) |>
+#     left_join(
+#       select(
+#         dest_fil(),
+#         city_code,
+#         city_name,
+#         city_lon,
+#         city_lat,
+#         country_name,
+#         oc,
+#         msf_type
+#       ),
+#       by = c("name_dest" = "city_code")
+#     ) |>
+#     select(
+#       rank,
+#       city_code = name_dest,
+#       city_lon,
+#       city_lat,
+#       city_name,
+#       country_name,
+#       grand_tot_km,
+#       grand_tot_emission,
+#       oc,
+#       msf_type
+#     )
+# }) |> bindEvent(input$go)
+
