@@ -275,7 +275,7 @@ mod_meeting_place_server <- function(
     output$map <- leaflet::renderLeaflet({
       req(map_dest())
       
-      pal <- colorFactor(c("darkred", "steelblue"), c("destination", "origin"))
+      pal <- colorFactor(c("darkred", "steelblue", "#ffe6a7"), c("destination", "origin", "shortest stop-over"))
       
       # origins
       map_ori <- df_origin() |> left_join(dest, by = join_by(origin_id == city_code))
@@ -293,6 +293,8 @@ mod_meeting_place_server <- function(
                                                        pull(node_paths) |>
                                                        unlist()))))
       
+      stop_nodes <- setdiff(short_nodes, c(map_ori$origin_id, map_dest))
+      
       short_edges <- unname(unlist(purrr::map(short_paths, ~ .x |>
                                                 pull(edge_paths) |>
                                                 unlist())))
@@ -301,7 +303,11 @@ mod_meeting_place_server <- function(
         activate("nodes") |>
         filter(name %in% short_nodes) |>
         st_as_sf() |>
-        mutate(type = if_else(name == map_dest, "destination", "origin"))
+        mutate(type = case_when(name == map_dest ~ "destination", 
+                                name %in% map_ori$origin_id ~ "origin", 
+                                name %in% stop_nodes ~ "shortest stop-over")
+               )
+      
       edges <- net |>
         activate("edges") |>
         slice(short_edges) |>
@@ -329,9 +335,12 @@ mod_meeting_place_server <- function(
           fillColor = ~ pal(type),
           label = ~city_name
         )
+      
     }) |> bindEvent(map_dest(), df_dists())
   }
   )
+  
+  
 }
 
 best_locations <- function(mat, 
