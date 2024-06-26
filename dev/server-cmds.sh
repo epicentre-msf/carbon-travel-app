@@ -1,4 +1,5 @@
 rsync -zavh ~/epicentre/carbon-travel-app/data episerv:/home/epicentre/carbon-travel-app/
+rsync -zavh ~/epicentre/carbon-travel-app/data episerv:/home/epicentre/carbon-travel-app-public/
 
 docker run --rm \
 -p 5858:3838 \

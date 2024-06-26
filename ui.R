@@ -24,7 +24,7 @@ ui <- tagList(
       "navbar-bg" = "#f8f9fa"
     ),
     
-    mod_travel_analysis_ui("travels"),
+    # mod_travel_analysis_ui("travels"),
     mod_meeting_place_ui("mp"),
     mod_travel_estim_ui("travel_estim"),
     nav_panel(
@@ -45,14 +45,6 @@ ui <- tagList(
         target = "_blank"
       )
     ),
-    # nav_item(
-    #   tags$a(
-    #     shiny::icon("github"),
-    #     "Report an issue",
-    #     href = "https://github.com/epicentre-msf/carbon-travel-app/issues",
-    #     target = "_blank"
-    #   )
-    # ),
     nav_item(
       tags$a(
         tags$img(

@@ -59,8 +59,8 @@ msf_type_vec <- c(
 df_conversion <- read_rds(here::here(clean_path, "conversion_df.rds"))
 
 # Get AMEX data
-#df_amex <- read_rds(here::here(clean_path, "amex_clean_lon_lat.rds"))
-df_travels <- read_rds(here::here(clean_path, "full_amex_wagram_cwt.rds"))
+# df_amex <- read_rds(here::here(clean_path, "amex_clean_lon_lat.rds"))
+# df_travels <- read_rds(here::here(clean_path, "full_amex_wagram_cwt.rds"))
 
 #load the network 
 net <- read_rds(here::here(clean_path, "flights_network.rds"))
@@ -69,10 +69,10 @@ net <- read_rds(here::here(clean_path, "flights_network.rds"))
 # cities_network <- read_rds(here::here(clean_path, "cities_network.rds"))
 
 # date range
-init_year <- sort(unique(df_travels$year))
-init_date_range <- format(seq.Date(min(df_travels$invoice_date), max(df_travels$invoice_date), by = "month"), "%Y-%m")
-min_date <- min(init_date_range)
-max_date <- max(init_date_range)
+# init_year <- sort(unique(df_travels$year))
+# init_date_range <- format(seq.Date(min(df_travels$invoice_date), max(df_travels$invoice_date), by = "month"), "%Y-%m")
+# min_date <- min(init_date_range)
+# max_date <- max(init_date_range)
 
 # local disk cache
 # shiny::shinyOptions(cache = cachem::cache_disk(here::here(".cache")))

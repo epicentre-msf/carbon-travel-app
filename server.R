@@ -15,11 +15,11 @@ server <- function(input, output, session) {
     )
   }
   
-  mod_travel_analysis_server(
-    id = "travels",
-    df_travels,
-    is_mobile = reactive(input$is_mobile)
-  )
+  # mod_travel_analysis_server(
+  #   id = "travels",
+  #   df_travels,
+  #   is_mobile = reactive(input$is_mobile)
+  # )
   
   mod_travel_estim_server(
     id = "travel_estim", 
