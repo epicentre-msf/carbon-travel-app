@@ -111,17 +111,15 @@ mod_meeting_place_server <- function(id,
 
     # Filter the destinations to map on, this will also update choices for destination selector
     dest_fil <- reactive({
-      req(input$msf_type_select)
-
+      df_out <- dest
       if (input$msf_all == "msf") {
-        msf_type_select <- paste(input$msf_type_select, collapse = "|")
-
-        dest |>
-          filter(msf) |>
-          filter(str_detect(msf_type, pattern = msf_type_select))
-      } else {
-        dest
+        df_out <- df_out |> filter(msf)
       }
+      if (input$msf_all == "msf" && length(input$msf_type_select)) {
+        msf_type_select <- paste(input$msf_type_select, collapse = "|")
+        df_out <- df_out |> filter(str_detect(msf_type, pattern = msf_type_select))
+      }
+      df_out
     })
 
     observe({
