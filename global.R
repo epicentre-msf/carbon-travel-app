@@ -42,13 +42,21 @@ orig_cities <- dest |>
 # get the air_msf data
 msf <- read_rds(here::here(clean_path, "unique_msf_clean.rds"))
 
-msf_type_vec <- read_rds(here::here(clean_path, "full_msf_clean.rds")) |> distinct(msf_type) |> pull(msf_type)
+# msf_type_vec <- read_rds(here::here(clean_path, "full_msf_clean.rds")) |>
+#   distinct(msf_type) |>
+#   pull(msf_type)
+
+msf_type_vec <- c(
+  "MSF HQ OC",
+  "MSF office",
+  "Field Coordination",
+  "Field Project",
+  "MSF Supply Center",
+  "Research center"
+)
 
 # get the conversion df - given by Maelle
-df_conversion <- read_rds(here::here("data", "clean", "conversion_df.rds"))
-
-# get the conversion df
-conversion_df <- read_rds(here::here(clean_path, "conversion_df.rds"))
+df_conversion <- read_rds(here::here(clean_path, "conversion_df.rds"))
 
 # Get AMEX data
 #df_amex <- read_rds(here::here(clean_path, "amex_clean_lon_lat.rds"))
@@ -58,7 +66,7 @@ df_travels <- read_rds(here::here(clean_path, "full_amex_wagram_cwt.rds"))
 net <- read_rds(here::here(clean_path, "flights_network.rds"))
 
 #load the distance matrix for all cities
-cities_network <- read_rds(here::here(clean_path, "cities_network.rds"))
+# cities_network <- read_rds(here::here(clean_path, "cities_network.rds"))
 
 # date range
 init_year <- sort(unique(df_travels$year))

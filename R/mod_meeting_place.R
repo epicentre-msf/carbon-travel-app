@@ -24,12 +24,15 @@ mod_meeting_place_ui <- function(id) {
             selected = "all",
             justified = TRUE
           ),
-          shinyWidgets::pickerInput(
+          shinyWidgets::virtualSelectInput(
             inputId = ns("msf_type_select"),
             label = "MSF type",
-            multiple = TRUE,
             choices = msf_type_vec,
-            selected = msf_type_vec
+            placeholder = "All types",
+            multiple = TRUE,
+            search = FALSE,
+            disableSelectAll = TRUE,
+            showDropboxAsPopup = FALSE
           ),
           shinyWidgets::virtualSelectInput(
             inputId = ns("select_dest"),
@@ -90,39 +93,37 @@ mod_meeting_place_ui <- function(id) {
   )
 }
 
-mod_meeting_place_server <- function(
-    id,
-    mat,
-    air_msf,
-    df_conversion, 
-    network,
-    is_mobile
-) {
+mod_meeting_place_server <- function(id,
+                                     mat,
+                                     air_msf,
+                                     df_conversion,
+                                     network,
+                                     is_mobile) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    
+
     observe({
       cond <- input$msf_all == "msf"
       shinyjs::toggle("msf_type_select", condition = cond, anim = TRUE)
     })
-    
+
     df_origin <- mod_origin_input_server("origin", orig_cities)
-    
+
     # Filter the destinations to map on, this will also update choices for destination selector
     dest_fil <- reactive({
       req(input$msf_type_select)
-      
+
       if (input$msf_all == "msf") {
         msf_type_select <- paste(input$msf_type_select, collapse = "|")
-        
+
         dest |>
           filter(msf) |>
-          filter(str_detect(msf_type, pattern = msf_type_select)) 
+          filter(str_detect(msf_type, pattern = msf_type_select))
       } else {
-        dest 
+        dest
       }
     })
-    
+
     observe({
       choices <- dest_fil() |>
         shinyWidgets::prepare_choices(
@@ -132,7 +133,7 @@ mod_meeting_place_server <- function(
         )
       shinyWidgets::updateVirtualSelect("select_dest", choices = choices)
     })
-    
+
     df_dists <- reactive({
       req(df_origin())
       on.exit({
@@ -140,23 +141,23 @@ mod_meeting_place_server <- function(
           toggle_sidebar(id = "sb", open = FALSE)
         }
       })
-      
+
       # final selection of destinations using the picker inputs
       dest_cities <- dest_fil()
-      
+
       # filter to selected cities if not empty
       if (length(input$select_dest)) {
         dest_cities <- dest_cities |> filter(city_code %in% input$select_dest)
       }
-      
+
       dest_cities <- dest_cities |> pull(city_code)
-      
-      # Get best locations from the matrix 
-      
-      all_dest <- best_locations(mat, 
-                                 df_origin(), 
-                                 destinations = dest_cities
-      ) |> 
+
+      # Get best locations from the matrix
+
+      all_dest <- best_locations(mat,
+        df_origin(),
+        destinations = dest_cities
+      ) |>
         mutate(rank = row_number()) |>
         relocate(rank, 1) |>
         left_join(
@@ -185,28 +186,28 @@ mod_meeting_place_server <- function(
           msf_type
         )
     }) |> bindEvent(input$go)
-    
-    
+
+
     # Make a reactable
     orange_pal <- function(x) rgb(colorRamp(c("#B8CCAD", "#BF6C67"))(x), maxColorValue = 255)
-    
+
     output$tbl <- reactable::renderReactable({
       validate(
         need(input$go > 0, "Select origins and destinations (optional) then click 'Get meeting places' to see results.")
       )
       req(df_dists())
-      
+
       df <- df_dists() |>
         select(-c(city_lon, city_lat)) |>
         head(50)
-      
+
       reactable(
         df,
         highlight = TRUE,
         searchable = TRUE,
         compact = TRUE,
         pagination = FALSE,
-        rowStyle = list(cursor = "pointer"), 
+        rowStyle = list(cursor = "pointer"),
         onClick = rt_get_city_code(id = ns("rt_city_code")),
         defaultColDef = colDef(align = "center", format = colFormat(separators = TRUE, locales = "fr-Fr")),
         columns = list(
@@ -225,20 +226,24 @@ mod_meeting_place_server <- function(
             align = "left",
             format = colFormat(separators = TRUE, locales = "fr-Fr", digits = 0),
             maxWidth = 150,
-            style = if(nrow(df) >1) { function(value) {
-              normalized <- (value - min(df$grand_tot_emission)) / (max(df$grand_tot_emission) - min(df$grand_tot_emission) +1)
-              color <- orange_pal(normalized)
-              list(background = color)
-            } } else { background = "white" }
+            style = if (nrow(df) > 1) {
+              function(value) {
+                normalized <- (value - min(df$grand_tot_emission)) / (max(df$grand_tot_emission) - min(df$grand_tot_emission) + 1)
+                color <- orange_pal(normalized)
+                list(background = color)
+              }
+            } else {
+              background <- "white"
+            }
           ),
           oc = colDef("Operational Center", align = "left", maxWidth = 200),
           msf_type = colDef("MSF type", align = "left")
         )
       )
     })
-    
+
     # Map  =========================================================================
-    
+
     map_dest <- reactiveVal()
     # when new locations are calculated update map dest to rank 1 city
     observe({
@@ -253,9 +258,9 @@ mod_meeting_place_server <- function(
       req(input$rt_city_code)
       map_dest(input$rt_city_code)
     })
-    
+
     # update choices of input
-    
+
     # observeEvent(df_dists(), {
     #   choices <- df_dists() |>
     #     shinyWidgets::prepare_choices(
@@ -265,54 +270,58 @@ mod_meeting_place_server <- function(
     #     )
     #   shinyWidgets::updateVirtualSelect("map_dest", choices = choices)
     # })
-    
+
     output$dest_text <- renderUI({
       req(map_dest())
       city_name <- dest[dest$city_code == map_dest(), "city_name", drop = TRUE]
       tags$p("Destination: ", tags$b(city_name), tags$small("  (click a row in the table above to change the destination)"))
     })
-    
+
     output$map <- leaflet::renderLeaflet({
       req(map_dest())
-      
-      pal <- colorFactor(c("darkred", "steelblue", "#ffe6a7"), c("destination", "origin", "shortest stop-over"))
-      
+
+      pal <- colorFactor(
+        palette = c("darkred", "steelblue", "orange"),
+        domain = c("destination", "origin", "shortest stop-over")
+      )
+
       # origins
       map_ori <- df_origin() |> left_join(dest, by = join_by(origin_id == city_code))
-      
+
       # destination selected
       map_dest <- map_dest()
-      
+
       # get the shortest path in network for all origin and this destination
       short_paths <- purrr::map(
         map_ori$origin_id,
         ~ sfnetworks::st_network_paths(net, from = .x, to = map_dest)
       )
-      
+
       short_nodes <- unique(unname(unlist(purrr::map(short_paths, ~ .x |>
-                                                       pull(node_paths) |>
-                                                       unlist()))))
-      
+        pull(node_paths) |>
+        unlist()))))
+
       stop_nodes <- setdiff(short_nodes, c(map_ori$origin_id, map_dest))
-      
+
       short_edges <- unname(unlist(purrr::map(short_paths, ~ .x |>
-                                                pull(edge_paths) |>
-                                                unlist())))
-      
+        pull(edge_paths) |>
+        unlist())))
+
       nodes <- net |>
         activate("nodes") |>
         filter(name %in% short_nodes) |>
         st_as_sf() |>
-        mutate(type = case_when(name == map_dest ~ "destination", 
-                                name %in% map_ori$origin_id ~ "origin", 
-                                name %in% stop_nodes ~ "shortest stop-over")
-               )
-      
+        mutate(type = case_when(
+          name == map_dest ~ "destination",
+          name %in% map_ori$origin_id ~ "origin",
+          name %in% stop_nodes ~ "shortest stop-over"
+        ))
+
       edges <- net |>
         activate("edges") |>
         slice(short_edges) |>
         st_as_sf()
-      
+
       leaflet::leaflet() |>
         leaflet::addProviderTiles("CartoDB.Positron", group = "Light") |>
         leaflet::addScaleBar(position = "bottomright", options = leaflet::scaleBarOptions(imperial = FALSE)) |>
@@ -335,61 +344,59 @@ mod_meeting_place_server <- function(
           fillColor = ~ pal(type),
           label = ~city_name
         )
-      
     }) |> bindEvent(map_dest(), df_dists())
-  }
-  )
-  
-  
+  })
 }
 
-best_locations <- function(mat, 
-                           df_origin, 
-                           destinations){
-  
-  
-  if( length(setdiff(df_origin$origin_id, colnames(mat))) > 0 ) { stop(paste0("Origins: ", paste(setdiff(df_origin$origin_id, colnames(mat)), collapse = ", "), " are not in the matrix")) }
-  if( length(setdiff(destinations, colnames(mat))) > 0 ) { stop(paste0("Destinations: ", paste(setdiff(destinations, colnames(mat)), collapse = ", "), " are not in the matrix")) }
-  
+best_locations <- function(mat,
+                           df_origin,
+                           destinations) {
+  if (length(setdiff(df_origin$origin_id, colnames(mat))) > 0) {
+    stop(paste0("Origins: ", paste(setdiff(df_origin$origin_id, colnames(mat)), collapse = ", "), " are not in the matrix"))
+  }
+  if (length(setdiff(destinations, colnames(mat))) > 0) {
+    stop(paste0("Destinations: ", paste(setdiff(destinations, colnames(mat)), collapse = ", "), " are not in the matrix"))
+  }
+
   # sort the df_origins by alphabetical order
   df_origin <- arrange(df_origin, origin_id)
-  
-  #sort the destination by alphabetical order
+
+  # sort the destination by alphabetical order
   destinations <- sort(destinations)
-  
-  #sort the matrix is sorted in alphabetical order
+
+  # sort the matrix is sorted in alphabetical order
   mat_sub <- mat[sort(rownames(mat)), sort(colnames(mat))]
-  
-  #1. filter the possible destinations & Filter rows of origins 
+
+  # 1. filter the possible destinations & Filter rows of origins
   mat_sub <- mat[df_origin$origin_id, destinations]
-  
-  #3. Multiply rows by value of input 
-  mat_sub_ori <- sweep(mat_sub, 1, df_origin$n_participant, FUN = "*" )
-  
-  #4. Sum all rows together and sort
+
+  # 3. Multiply rows by value of input
+  mat_sub_ori <- sweep(mat_sub, 1, df_origin$n_participant, FUN = "*")
+
+  # 4. Sum all rows together and sort
   mat_sum <- sort(colSums(mat_sub_ori))
-  
-  #5. create dataframe and calculate emissions
-  df <- data.frame(name_dest = names(mat_sum), 
-                   grand_tot_km = unname(mat_sum)) |> 
+
+  # 5. create dataframe and calculate emissions
+  df <- data.frame(
+    name_dest = names(mat_sum),
+    grand_tot_km = unname(mat_sum)
+  ) |>
     mutate(
       distance_cat = case_when(
         grand_tot_km <= 999 ~ "short",
         grand_tot_km >= 3500 ~ "long",
         .default = "medium"
-      ) ) |> 
-    
+      )
+    ) |>
     left_join(
-      
-      conversion_df |> 
+      df_conversion |>
         select(distance_cat, emissions_factor = co2e),
       by = "distance_cat"
     ) |>
     mutate(
       grand_tot_emission = round(digits = 3, grand_tot_km * emissions_factor),
     ) |>
-    
     select(name_dest, grand_tot_km, grand_tot_emission)
-  
+
   return(df)
 }

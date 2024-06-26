@@ -21,7 +21,6 @@ mod_travel_analysis_ui <- function(id) {
             animate = FALSE,
             width = "95%"
           ),
-          
           shiny::selectizeInput(
             inputId = ns("select_travel_type"),
             label = "Travel Type",
@@ -29,7 +28,6 @@ mod_travel_analysis_ui <- function(id) {
             multiple = TRUE,
             options = list(placeholder = "All", plugins = "remove_button")
           ),
-          
           shiny::selectizeInput(
             inputId = ns("select_org"),
             label = "Organisation",
@@ -715,7 +713,9 @@ mod_travel_analysis_server <- function(
         "column",
         hcaes(
           x = group_var,
-          y = !!bar_var_sym
+          y = !!bar_var_sym,
+          percent = percent,
+          label = label
         )
       ) |>
         hc_chart(
@@ -729,12 +729,14 @@ mod_travel_analysis_server <- function(
           crosshair = TRUE
         ) |>
         hc_tooltip(
-          useHTML = TRUE,
-          formatter = JS("
-          function(){
-            outHTML =  '<i>' + this.point.group_var + '</i> <br> <b>' + this.point.label + ' (' + this.point.percent + ')</b>'
-            return(outHTML)
-          }")
+          shared = TRUE,
+          pointFormat = "<b>{point.label} ({point.percent:.1f})</b><br/>"
+          # useHTML = TRUE,
+          # formatter = JS("
+          # function(){
+          #   outHTML =  '<i>' + this.point.group_var + '</i> <br> <b>' + this.point.label + ' (' + this.point.percent + ')</b>'
+          #   return(outHTML)
+          # }")
         ) |>
         hc_chart(inverted = TRUE)
     })

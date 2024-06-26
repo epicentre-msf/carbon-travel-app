@@ -8,7 +8,6 @@ ui <- tagList(
     .selectize-dropdown, .selectize-input, .form-control {font-size: 0.8rem !important;}
     .bigger-text {font-size: 1.1rem !important;}
     "),
-    
     shinyjs::useShinyjs(),
     waiter::use_waiter()
   ),
@@ -25,7 +24,6 @@ ui <- tagList(
       "navbar-bg" = "#f8f9fa"
     ),
     
-    # header = verbatimTextOutput("agent_info"),
     mod_travel_analysis_ui("travels"),
     mod_meeting_place_ui("mp"),
     mod_travel_estim_ui("travel_estim"),

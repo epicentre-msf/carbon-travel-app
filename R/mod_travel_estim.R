@@ -82,7 +82,7 @@ mod_travel_estim_server <- function(id,
           )
         ) |>
         left_join(
-          conversion_df |> select(distance_cat, emissions_factor = co2e),
+          df_conversion |> select(distance_cat, emissions_factor = co2e),
           by = "distance_cat"
         ) |>
         mutate(

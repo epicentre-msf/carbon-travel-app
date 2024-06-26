@@ -15,10 +15,6 @@ server <- function(input, output, session) {
     )
   }
   
-  # output$agent_info <- renderPrint({
-  #   paste("Mobile:", input$is_mobile, "Agent:", input$user_agent)
-  # })
-  
   mod_travel_analysis_server(
     id = "travels",
     df_travels,
