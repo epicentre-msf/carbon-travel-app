@@ -58,8 +58,7 @@ msf_type_vec <- c(
 # get the conversion df - given by Maelle
 df_conversion <- read_rds(here::here(clean_path, "conversion_df.rds"))
 
-# Get AMEX data
-#df_amex <- read_rds(here::here(clean_path, "amex_clean_lon_lat.rds"))
+# Get all travel data
 df_travels <- read_rds(here::here(clean_path, "full_amex_wagram_cwt.rds"))
 
 #load the network 

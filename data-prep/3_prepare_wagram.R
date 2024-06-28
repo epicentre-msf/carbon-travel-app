@@ -29,13 +29,9 @@ amex <- readRDS(here::here(clean_path, "amex_clean_lon_lat.rds"))
 
 # Import data  -------------------------------------------------------------
 
-if(fetch_data_offline){
-  
-  # OFFLINE
-  path_offline <- here::here("data", "raw")
-  raw_path <- path_offline
-  
-}
+# OFFLINE
+#path_offline <- here::here("data", "raw")
+#raw_path <- path_offline
 
 #Import Wagram data 
 wagram_files <- fs::dir_ls(fs::path(raw_path, "wagram-data"), regexp = "Standard")
@@ -54,7 +50,6 @@ amex |> select(-c(contains("ori_"), contains("dest_"))) |> names()
 
 # Map variables  ----------------------------------------------------------
 #remove all frais and trains 
-
 
 # 2019 --------------------------------------------------------------------
 w_df_ls$w_2019 |> names()
@@ -77,9 +72,13 @@ w_2019 <- w_df_ls$w_2019 |>
   ) |>  
   rename_with( .fn =  ~ paste0("seg_", str_extract(.x, "[1-9]{1}")), .cols = contains("segment")) |> 
   
-  #remove frais and rails
-  filter(full_trip != "FRAIS", 
-         activite %in% c("AERIEN BSP", "AERIEN HORS BSP", "AERIEN LOW COST") )
+  #remove frais keep air and rails
+  filter(!str_detect(full_trip, "FRAIS"), 
+         activite %in% c("AERIEN BSP", "AERIEN HORS BSP", "AERIEN LOW COST", "FER") 
+  ) |> 
+  mutate(travel_type =  
+           case_when(str_detect(activite, "AERIEN") ~"air", 
+                     activite == "FER" ~ "rail")) |> select(-activite)
 
 # 2020 --------------------------------------------------------------------
 w_df_ls$w_2020 |> names()
@@ -103,9 +102,13 @@ w_2020 <- w_df_ls$w_2020 |>
   
   rename_with( .fn =  ~ paste0("seg_", str_extract(.x, "[1-9]{1}")), .cols = contains("segment")) |>
   
-  #remove frais and rails
-  filter(full_trip != "FRAIS", 
-         activite %in% c("AERIEN BSP", "AERIEN HORS BSP", "AERIEN LOW COST"))
+  #remove frais keep air and rails
+  filter(!str_detect(full_trip, "FRAIS"), 
+         activite %in% c("AERIEN BSP", "AERIEN HORS BSP", "AERIEN LOW COST", "FER") 
+  ) |> 
+  mutate(travel_type =  
+           case_when(str_detect(activite, "AERIEN") ~"air", 
+                     activite == "FER" ~ "rail")) |> select(-activite)
 
 # 2022 --------------------------------------------------------------------
 w_df_ls$w_2022 |> names()
@@ -127,9 +130,13 @@ w_2022 <- w_df_ls$w_2022 |>
   ) |>  
   rename_with( .fn =  ~ paste0("seg_", str_extract(.x, "[1-9].*$")), .cols = contains("par_sg")) |> 
   
-  #remove frais and rails
-  filter(full_trip != "FRAIS", 
-         activite == "AERIEN BSP")
+  #remove frais keep air and rails
+  filter(!str_detect(full_trip, "FRAIS"), 
+         activite %in% c("AERIEN BSP", "AERIEN HORS BSP", "AERIEN LOW COST", "FER") 
+  ) |> 
+  mutate(travel_type =  
+           case_when(str_detect(activite, "AERIEN") ~"air", 
+                     activite == "FER" ~ "rail")) |> select(-activite)
 
 # 2023 --------------------------------------------------------------------
 w_df_ls$w_2023 |> names()
@@ -151,9 +158,13 @@ w_2023 <- w_df_ls$w_2023 |>
   ) |> 
   rename_with( .fn =  ~ paste0("seg_", str_extract(.x, "[1-9].*$")), .cols = contains("par_sg")) |> 
   
-  #remove frais and rails
-  filter(full_trip != "FRAIS", 
-         activite == "AERIEN BSP")
+  #remove frais keep air and rails
+  filter(!str_detect(full_trip, "FRAIS"), 
+         activite %in% c("AERIEN BSP", "AERIEN HORS BSP", "AERIEN LOW COST", "FER") 
+  ) |> 
+  mutate(travel_type =  
+           case_when(str_detect(activite, "AERIEN") ~"air", 
+                     activite == "FER" ~ "rail")) |> select(-activite)
 
 # Bind all together -------------------------------------------------------
 
@@ -173,7 +184,7 @@ w_clean <- w_raw |>
                      "MSF LOGISTIQUE" ~"MSF Logistique"
     ) ) |>  
   mutate(across(c(gross_amount), ~ as.numeric(.x)), 
-         across(c(traveler_name, trip_type, activite), ~ tolower(.x)), 
+         across(c(traveler_name, trip_type, travel_type), ~ tolower(.x)), 
          invoice_date = ymd(invoice_date), 
          month = floor_date(invoice_date, "month"),
          month = format(month, "%Y-%m"),
@@ -226,10 +237,13 @@ w_2021 <- w_df_ls$w_2021 |>
   ) |> 
   #remove frais and rails
   filter(full_trip != "FRAIS", 
-         activite == "AERIEN"
+         activite %in% c("AERIEN", "FER")
   ) |> 
   
-  mutate(across(c(traveler_name, ori, dest, activite), ~ tolower(.x)), 
+  mutate(travel_type = case_when(activite == "FER" ~ "rail", 
+                                 activite == "AERIEN" ~"air"), 
+         
+         across(c(traveler_name, ori, dest, travel_type), ~ tolower(.x)), 
          invoice_date = ymd(invoice_date), 
          month = floor_date(invoice_date, "month"),
          month = format(month, "%Y-%m"),

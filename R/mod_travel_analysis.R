@@ -88,6 +88,7 @@ mod_travel_analysis_ui <- function(id) {
           theme = "primary",
           class = "vb",
           value = textOutput(ns("segment")),
+          uiOutput(ns("segment_info"))
         )
       ),
       
@@ -300,8 +301,11 @@ mod_travel_analysis_server <- function(
           toggle_sidebar(id = "sb", open = FALSE)
         }
       })
-      
-      main_segment <- travel_ready() |>
+    
+      main_segment <- travel_ready() |> 
+        
+        filter(!is.na(ori_city_code), 
+               !is.na(dest_city_code)) |> 
         
         count(ori_city_name, dest_city_name) |>
         mutate(segment = paste(ori_city_name, dest_city_name, sep = "-")) |>
@@ -343,6 +347,12 @@ mod_travel_analysis_server <- function(
       paste(travel_summary()$n_segment, " unique")
     })
     
+    output$segment_info <- renderUI({
+      
+      req(travel_summary())
+      tags$small(glue::glue("{travel_summary()$main_seg} is most travelled"))
+    })
+    
     output$dist <- renderText({
       req(travel_summary())
       paste(travel_summary()$tot_distance_km_fmt, " km")
@@ -351,7 +361,7 @@ mod_travel_analysis_server <- function(
     output$dist_info <- renderUI({
       
       req(travel_summary())
-      tags$small(glue::glue("{fmt_n(travel_summary()$tot_distance_km/40000)} times the Earth's circumference !"))
+      tags$small(glue::glue("{fmt_n(round(digits = 2, travel_summary()$tot_distance_km/40000))} times the Earth's circumference !"))
     })
     
     output$emission <- renderText({
@@ -361,7 +371,7 @@ mod_travel_analysis_server <- function(
     
     output$emission_info <- renderUI({
       req(travel_summary())
-      tags$small(glue::glue("{fmt_n(travel_summary()$tot_emissions * 0.013 )} tanker trucks worth of gasoline !"))
+      tags$small(glue::glue("{fmt_n(round(digits = 2, travel_summary()$tot_emissions * 0.013 ) )} tanker trucks worth of gasoline !"))
     })
     
     # Ratio table  ===========================================

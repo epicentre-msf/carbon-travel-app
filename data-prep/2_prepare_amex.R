@@ -45,7 +45,7 @@ if(fetch_data_offline){
   # OFFLINE
   path_offline <- here::here("data", "raw")
   raw_path <- path_offline
-
+  
 }
 
 # LOAD AIR
@@ -62,8 +62,9 @@ air_amex <- air_files |>
   as_tibble()
 
 #rename and select appropriate variable + remove refunds 
-
+# ISSUE WITH DATES HERE
 air_amex <-  air_amex |> 
+  
   select(org = client_id, 
          ticket_number,
          traveler_name,
@@ -81,6 +82,7 @@ air_amex <-  air_amex |>
          carrier = carrier_validating
          
   ) |> 
+  
   # id the flight that were refunded and remove them
   mutate(
     .by = c(ticket_number, dest_code, ori_code),
@@ -110,6 +112,7 @@ rail_amex <- rail_files |>
 #rename and select appropriate variable + remove refunds 
 
 rail_amex <- rail_amex  |> 
+  
   select(org = client_id, 
          ticket_number,
          traveler_name,
@@ -127,13 +130,16 @@ rail_amex <- rail_amex  |>
          reason_code_description
          
   ) |> 
+  
   # id the flight that were refunded and remove them
   mutate(
     .by = c(ticket_number, traveler_name, dest_code, ori_code),
     refunded = sum(distance_km) == 0
   ) |> 
+  
   filter(refunded == FALSE, 
          is.na(reason_code_description) ) |> 
+  
   select(-c(ticket_number, refunded, reason_code_description)) |> 
   
   mutate(travel_type = "rail")

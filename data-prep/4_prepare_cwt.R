@@ -29,13 +29,9 @@ amex <- readRDS(here::here(clean_path, "amex_clean_lon_lat.rds"))
 
 # Import data  -------------------------------------------------------------
 
-if(fetch_data_offline){
-  
-  # OFFLINE
-  path_offline <- here::here("data", "raw")
-  raw_path <- path_offline
-  
-}
+# OFFLINE
+#path_offline <- here::here("data", "raw")
+#raw_path <- path_offline
 
 #Import CWT data 
 
@@ -48,7 +44,7 @@ cwt_raw |> names()
 
 cwt_clean <- cwt_raw |> 
   
-  filter(travel_type == "AIR") |> 
+  filter(travel_type %in% c("AIR", "RAIL")) |> 
   
   select(traveler_name, 
          invoice_number, 
@@ -56,7 +52,8 @@ cwt_clean <- cwt_raw |>
          ori = origin_city_name, 
          dest = destination_city_name, 
          gross_amount = paid_fare, 
-         reason_travel = client_defined_field_3
+         reason_travel = client_defined_field_3, 
+         travel_type
   ) |> 
   
   mutate(org = "OCBA") |> 
@@ -64,7 +61,7 @@ cwt_clean <- cwt_raw |>
   relocate(org, .before = 1) |> 
   
   mutate(across(c(gross_amount), ~ as.numeric(.x)), 
-         across(c(traveler_name, ori, dest), ~ tolower(.x)), 
+         across(c(traveler_name, ori, dest, travel_type), ~ tolower(.x)), 
          invoice_date = ymd(invoice_date), 
          month = floor_date(invoice_date, "month"),
          month = format(month, "%Y-%m"),
