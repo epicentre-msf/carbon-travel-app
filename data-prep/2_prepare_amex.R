@@ -312,9 +312,9 @@ df_airports <- df_airports |> left_join(df_cities |>
                                             city_lon = lon,
                                             city_lat = lat
                                           ))
-# rename codes for matching
-# Blaise Diagne International Airport is in data but doesn't match Dakar as a city -
-# we force it to DKR iata code to match DKR city
+# rename some codes for matching
+# Blaise Diagne International Airport is in data but doesn't match Dakar as a city - we force it to DKR iata code to match DKR city
+# shall we do this with others ? like entebbe/Kampala etc ... 
 
 amex_clean <- amex_clean |>
   rename(
@@ -328,14 +328,17 @@ amex_clean <- amex_clean |>
   )) |>
   select(-c(ori, dest))
 
+#get all the iata codes of AIR travels
+# some railway stations have IATA code and we can't remove them now 
+
 df_amex_codes <- tibble(iata_code = c(
-  amex_clean$raw_ori_iata_code,
-  amex_clean$raw_dest_iata_code
+  filter(amex_clean, travel_type == "air")$raw_ori_iata_code,
+  filter(amex_clean, travel_type == "air")$raw_dest_iata_code
 )) |>
   mutate(iata_code = str_to_upper(str_trim(iata_code))) |>
   distinct()
 
-df_amex_codes_matched_1 <- df_amex_codes |>
+df_amex_codes_matched <- df_amex_codes |>
   inner_join(
     df_airports,
     by = join_by(iata_code)
@@ -352,23 +355,22 @@ df_amex_codes_matched_1 <- df_amex_codes |>
     lat
   )
 
-df_amex_codes_matched_2 <- df_amex_codes |>
-  anti_join(df_airports, by = join_by(iata_code == iata_code)) |>
-  inner_join(df_cities, by = join_by(iata_code == city_code)) |>
-  mutate(
-    city_code = iata_code,
-    .after = iata_code
-  ) |>
-  left_join(df_cities |> select(city_code, city_lon = lon, city_lat = lat), by = join_by(city_code))
-
-df_amex_codes_matched <- bind_rows(
-  df_amex_codes_matched_1,
-  df_amex_codes_matched_2
-) |>
-  distinct(iata_code, .keep_all = TRUE)
+# df_amex_codes_matched_2 <- df_amex_codes |>
+#   anti_join(df_airports, by = join_by(iata_code == iata_code)) |>
+#   inner_join(df_cities, by = join_by(iata_code == city_code)) |>
+#   mutate(
+#     city_code = iata_code,
+#     .after = iata_code
+#   ) |>
+#   left_join(df_cities |> select(city_code, city_lon = lon, city_lat = lat), by = join_by(city_code))
+# 
+# df_amex_codes_matched <- bind_rows(
+#   df_amex_codes_matched_1,
+#   df_amex_codes_matched_2
+# ) |>
+#   distinct(iata_code, .keep_all = TRUE)
 
 # Join the matched codes to the data
-
 df_amex_clean_lon_lat <- amex_clean |>
   mutate(across(ends_with("_code"), ~ str_to_upper(str_trim(.x)))) |>
   left_join(

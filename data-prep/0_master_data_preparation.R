@@ -1,6 +1,6 @@
 #Data preparation for Carbon travel app 
 
-fetch_data_offline <- FALSE
+fetch_data_offline <- TRUE
 
 #1. prepare cities name and code
 
@@ -22,6 +22,12 @@ source(here::here("data-prep", "4_prepare_cwt.R"))
 
 source(here::here("data-prep", "5_bind_amex_wagram_cwt.R"))
 
-#6. Prepare the distance matrix
+#  =============================================  These scripts are long to run ! (~20 min) =============================================
 
-source(here::here("data-prep", "6_prepare_distance_matrix.R"))
+#6. Create networks 
+
+source(here::here("data-prep", "6_prepare_networks.R"))
+
+#7. Prepare the emissions matrix
+
+source(here::here("data-prep", "7_prepare_emission_matrix.R"))

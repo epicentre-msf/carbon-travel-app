@@ -52,6 +52,9 @@ df_airport_city <- map_df(airport_city_sheets, ~ {
     drop_na()
 })
 
+#fix wrong airpots 
+df_airport_city <- df_airport_city |> filter(iata_code != "MQP" & city_code != "NLP")
+
 # Airport database
 df_airports <- df_airport_city |>
   left_join(
@@ -103,6 +106,7 @@ write_rds(df_airports, here::here(clean_path, "df_airports.rds"))
 # City database
 # group for cities with more than 1 airport
 df_cities <- df_airports |>
+  mutate(city_name = case_match(city_name, "Panama" ~ "Panama City", .default = city_name)) |> 
   summarise(
     .by = c(city_name, country_name, country_code3),
     
