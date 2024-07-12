@@ -38,7 +38,7 @@ clean_path <- here::here("data", "clean")
 
 # Import data  -------------------------------------------------------------
 
-fetch_data_offline <- FALSE
+fetch_data_offline <- TRUE
 
 if(fetch_data_offline){
   
@@ -55,6 +55,9 @@ air_files <- lapply(air_dir_ls, rio::import, skip = 5, guess_max = 10000000)
 air_files <- purrr::map(air_files, ~ .x |>
                           as_tibble() |>
                           clean_names())
+
+air_files$`/Users/hugzsoubrier/GitHub/carbon-travel-app/data/raw/amex-data/AirEmissions_ALLMSF_2024.xlsx` <-  air_files$`/Users/hugzsoubrier/GitHub/carbon-travel-app/data/raw/amex-data/AirEmissions_ALLMSF_2024.xlsx` |> rename(flight_kilometers = flight_emission_kilometers, 
+                                                                                                                                                                                                                                  flight_mileage = flight_emission_mileage)
 
 # bind all together
 air_amex <- air_files |>

@@ -98,21 +98,21 @@ df_airports <- df_airports |>
                         .default = city_name)
   
   ) 
-
 write_rds(df_airports, here::here(clean_path, "df_airports.rds"))
 
 # City database
 # group for cities with more than 1 airport
 df_cities <- df_airports |>
   summarise(
-    .by = c(city_code, city_name, country_name, country_code3),
+    .by = c(city_name, country_name, country_code3),
+    
+    #required as some city_name +country_name have different city_Code : eg Kabul, so here we take the first one
+    city_code = city_code[1],
     lon = mean(lon, na.rm = TRUE),
     lat = mean(lat, na.rm = TRUE)
   ) |>
-  rename(country_code = country_code3) |>
-  # remove duplicated
-  distinct(city_name, .keep_all = TRUE)
-
+  rename(country_code = country_code3)
+                                            
 write_rds(df_cities, here::here(clean_path, "df_cities.rds"))
 
 # MSF data ----------------------------------------------------------------
@@ -156,7 +156,6 @@ msf_match <- hmatch_composite(
   filter(match)
 
 # join to MSF data
-
 msf_clean <- left_join(
   msf_raw,
   msf_match,
